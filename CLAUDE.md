@@ -4,24 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-POUTINE is a homoplasy-counting GWAS tool for microbial genomes (GPL-3, alpha). The entire program is one Java class, [src/Homoplasy_Counter.java](src/Homoplasy_Counter.java) (~6,300 lines, default package, no build system).
+POUTINE is a homoplasy-counting GWAS tool for microbial genomes (GPL-3, alpha). The entire program is one Java class, [src/main/java/Homoplasy_Counter.java](src/main/java/Homoplasy_Counter.java) (~6,300 lines, default package, no build system).
 
 ## Build and run
 
 There is no Maven/Gradle, no tests, and no linter. Third-party jars committed in `compiled/`: commons-math3, picocli, and `coevolution.jar` (which provides `NewickTree`/`NewickTreeNode` from `org.gersteinlab.coevolution`). **All Java source now lives in `src/`**, so the program builds from `src/` plus commons-math3 and picocli alone; `coevolution.jar` and the committed `Fasta_*` classes are no longer needed to build.
 
 - Run: `./poutine.sh <options>` (`--help` lists them). The script is `java -cp "compiled:compiled/coevolution.jar:compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" Homoplasy_Counter`. The classpath is relative, so **run it from the repo root**.
-- Recompile into a scratch directory (verified): `javac -cp "compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" -sourcepath src -d <dir> src/Homoplasy_Counter.java`, then run with `java -cp "<dir>:compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" Homoplasy_Counter`. `-sourcepath src` pulls in `Fasta_Manager`, `Fasta_Record` and the vendored coevolution classes. (Using `-d compiled` would overwrite the committed classes that `poutine.sh` runs.)
+- Recompile into a scratch directory (verified): `javac -cp "compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" -sourcepath src/main/java -d <dir> src/main/java/Homoplasy_Counter.java`, then run with `java -cp "<dir>:compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" Homoplasy_Counter`. `-sourcepath src/main/java` pulls in `Fasta_Manager`, `Fasta_Record` and the vendored coevolution classes. (Using `-d compiled` would overwrite the committed classes that `poutine.sh` runs.)
 - **Editing `src/` does not change what `./poutine.sh` runs.** It runs the `.class` files committed in `compiled/`; test source edits with the scratch build above. The last commit touching `src/` (dfc16ba) did not touch `compiled/`, so the committed classes may be stale relative to the source.
 - Committed classes are Java 14 bytecode (class version 58), so a JVM of 14+ is required.
-- `src/org/gersteinlab/coevolution/` holds five vendored, unmodified third-party files (Newick parsing) with **no known licence**. Don't edit them, and don't publish releases or packages until [docs/third-party-and-licensing.md](docs/third-party-and-licensing.md) is resolved.
-- `src/Fasta_Manager.java` and `src/Fasta_Record.java` were **reconstructed from the old bytecode** (the original source was never committed) and compile to instruction-for-instruction identical classes at Java 8 target. They keep the original's quirks on purpose (errors call `System.exit`, `getHeader()` drops the first character, a header line over 1000 characters breaks `mark/reset`), so don't "fix" them without a golden test. The committed `compiled/Fasta_*.class` are now redundant.
+- `src/main/java/org/gersteinlab/coevolution/` holds five vendored, unmodified third-party files (Newick parsing) with **no known licence**. Don't edit them, and don't publish releases or packages until [docs/third-party-and-licensing.md](docs/third-party-and-licensing.md) is resolved.
+- `src/main/java/Fasta_Manager.java` and `src/main/java/Fasta_Record.java` were **reconstructed from the old bytecode** (the original source was never committed) and compile to instruction-for-instruction identical classes at Java 8 target. They keep the original's quirks on purpose (errors call `System.exit`, `getHeader()` drops the first character, a header line over 1000 characters breaks `mark/reset`), so don't "fix" them without a golden test. The committed `compiled/Fasta_*.class` are now redundant.
 - External requirement: `treetime` must be on `PATH` (the program shells out to `treetime ancestral ...`). The README pins `phylo-treetime==0.8.6`, because 0.9.0+ puts curly braces in its output filenames and breaks parsing. Treetime does not work on Windows. A local `.venv/` is gitignored, so activate it before running.
 - No sample data is in the repo. To exercise it you need a variable-sites multi-FASTA, a Newick tree, a phenotype file (tab-delimited, no header, `sample<TAB>0|1`) and a physical-positions/PLINK `.map` file. `--vcf` is declared but not implemented.
 
 ## Architecture
 
-`call()` ([Homoplasy_Counter.java:230](src/Homoplasy_Counter.java#L230)) is the whole pipeline, run as picocli `Callable<Integer>`:
+`call()` ([Homoplasy_Counter.java:230](src/main/java/Homoplasy_Counter.java#L230)) is the whole pipeline, run as picocli `Callable<Integer>`:
 
 1. `more_cmdline_magic()` / `log_cmdline_global_vars()`: resolve and validate output paths (timestamping, `-X` overwrite guard), open log/out/debug writers.
 2. **Ancestral reconstruction** (skipped with `-u`): `ancestral_reconstruction()` runs treetime via `ProcessBuilder`, then `nexus_to_newick()` parses treetime's `annotated_tree.nexus` into a newick with labelled internal nodes. With `-u`, the user supplies that ancestral FASTA and newick directly (a previous run writes `ancestral_tree.newick` for this purpose).

@@ -5,4 +5,4 @@ The five `.java` files under this directory are copied **unmodified** from the G
 **Licence: unknown.** The upstream distribution carries no licence or copyright notice. These files must not be treated as GPL-3 like the rest of the repository, and the repository must not be published to bioconda until this is resolved.
 
 - Do not edit these files.
-- Provenance, checksums, options and the bioconda checklist: [docs/third-party-and-licensing.md](../../../docs/third-party-and-licensing.md).
+- Provenance, checksums, options and the bioconda checklist: [docs/third-party-and-licensing.md](../../../../../../docs/third-party-and-licensing.md).

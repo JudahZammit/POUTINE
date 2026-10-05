@@ -2,7 +2,7 @@
 
 Why POUTINE's output is not currently reproducible, and the design that makes it so without changing the science. This supports the [pre-feature hardening milestone](milestone-pre-feature-hardening.md).
 
-Line numbers refer to [src/Homoplasy_Counter.java](../src/Homoplasy_Counter.java) as of the start of the milestone and will drift.
+Line numbers refer to [src/main/java/Homoplasy_Counter.java](../src/main/java/Homoplasy_Counter.java) as of the start of the milestone and will drift.
 
 ## Risks found in the current code
 
