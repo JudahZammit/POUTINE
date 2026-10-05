@@ -44,6 +44,10 @@ out=$(cd / && "$tmp/bin/poutine" --version)
 [ "$out" = "
 POUTINE 1.0.0" ] && ok "--version through a symlink, run from /" || bad "--version through a symlink: [$out]"
 (cd / && "$tmp/bin/poutine" --help | grep -q "Usage: poutine") && ok "--help" || bad "--help"
+# installed layout, as in a conda package: bin/poutine next to share/poutine-<version>/poutine.jar
+mkdir -p "$tmp/inst/bin" "$tmp/inst/share/poutine-1.0.0-0"
+cp "$launcher" "$tmp/inst/bin/poutine"; cp "$repo"/target/poutine-*.jar "$tmp/inst/share/poutine-1.0.0-0/poutine.jar"
+"$tmp/inst/bin/poutine" --version > /dev/null 2>&1; expect_exit "installed layout (share/poutine*/poutine.jar)" 0 $?
 mkdir "$tmp/nojar" "$tmp/nojar/bin"; cp "$launcher" "$tmp/nojar/bin/poutine"
 "$tmp/nojar/bin/poutine" --version > "$tmp/o.txt" 2>&1; expect_exit "no jar found refused" 1 $?
 grep -q "mvn package" "$tmp/o.txt" && ok "  message says to run mvn package" || bad "  message: $(cat "$tmp/o.txt")"

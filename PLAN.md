@@ -128,6 +128,7 @@ Ordered to follow the validation strategy: build, validate, update, revalidate, 
 - Is a commons-math3 to commons-statistics migration ever wanted? (Recommended: no, not in this milestone; `BinomialTest` defines every p-value.)
 - Add Dependabot/Renovate once CI exists (milestone step 6), with the golden test as the gate for every update PR?
 - How should a user get `treetime` if not through conda (pip pin in the README)?
+- **`--help` display problems, left unfixed (decision 2026-10-05):** the help is laid out for 210 columns, and the section headings set only a background colour (unreadable on dark themes). Details, candidate fixes and how to inspect it are in [docs/help-output.md](docs/help-output.md). Changing the width alters the help text, so the byte-identical CLI check needs a new baseline first.
 
 ## Notes and gotchas
 

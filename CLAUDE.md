@@ -67,3 +67,4 @@ Claude can't detect that a session is ending, so run this when the user runs `/s
 - snake_case method and variable names, and class names like `Homoplasy_Events`, with inner classes for data holders. This is not standard Java style, so match it.
 - CLI options are picocli `@Option` fields grouped into `@ArgGroup` static classes (`InputFiles`, `AlgoParams`, `RuntimeSettings`, `OutputOptions`). Numeric options are validated in setter methods that throw `ParameterException`.
 - Console output uses picocli `Ansi.AUTO.string("@|fg(N) ... |@")` markup, and anything notable is mirrored to the session log via `outputOptions.log`.
+- The `--help` layout has known, deliberately unfixed display problems (fixed 210-column width, headings with a background colour only); see [docs/help-output.md](docs/help-output.md). picocli drops colour when output is not a terminal, so captured output never shows the colour problems.

@@ -8,10 +8,11 @@ die() {
     exit 1
 }
 
-# The jar is in ../target relative to this script; readlink -f makes this work through symlinks too.
+# The jar is found relative to this script (readlink -f makes this work through symlinks too): in ../target in a
+# source checkout after "mvn package", or in ../share/poutine*/ when installed as a conda package.
 dir=$(dirname "$(readlink -f "$0")")
 jar=
-for f in "$dir"/../target/poutine-*.jar; do [ -f "$f" ] && jar=$f; done
+for f in "$dir"/../target/poutine-*.jar "$dir"/../share/poutine*/poutine*.jar; do [ -f "$f" ] && jar=$f; done
 [ -n "$jar" ] || die "jar not found: build it with 'mvn package' inside the conda environment (see docs/environment.md)."
 
 command -v java > /dev/null || die "java not found: activate the conda environment (conda activate poutine)."
