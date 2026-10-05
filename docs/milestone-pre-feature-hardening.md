@@ -41,7 +41,8 @@ Done so far (2026-10-05): POUTINE runs end to end with Java 21, Python 3.14 and 
 Tracked in detail in the `PLAN.md` on `streamline-installation`.
 
 - [x] Build system with pinned, updatable dependencies instead of committed jars (`pom.xml`, shaded jar; verified 2026-10-05).
-- [ ] Update dependencies (picocli, JDK target, treetime decision; commons-math3 stays pinned) one at a time, comparing deterministic columns exactly against the pre-update reference, then revalidate against the published results.
+- [x] Update dependencies: JDK target raised to 21 everywhere; commons-math3 and picocli stay pinned by decision (2026-10-05); treetime is pinned at the latest release, 0.12.1, after a comparison with 0.7.6 and 0.8.6 (see [treetime-version-comparison.md](treetime-version-comparison.md)). Updates were applied one at a time, comparing deterministic columns exactly against the legacy build on both fixtures.
+- [ ] Revalidate against the published results once the published dataset and results are found (this is still open).
 - [x] Pinned JDK, a conda `environment.yml` and a generated Linux-only `conda-lock.yml` (see [environment.md](environment.md)) (Python, treetime, OpenJDK, Maven), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
 - [ ] Resolved treetime version, with the reasons recorded.
 - [ ] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below).
@@ -117,7 +118,7 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 
 - **Published dataset:** which one, and where do its processed inputs come from? The preprint's discovery set (1,330 genomes, PRJNA413593) has public raw reads but apparently no public processed inputs; the 123-genome reference set may be more practical. Can the data, or a subsample, be committed (size, license, privacy)? The golden test may need a smaller derived subset for CI speed.
 - **Published settings:** replicates, `--min_hcount`, POUTINE version and treetime version (preprint: 0.7.6) behind the published tables.
-- **Treetime version:** keep 0.8.6 (needs an older Python/numpy stack, to be verified) or move to a current release? 0.12.1 already ran cleanly on the toy fixture with no curly-brace filenames; what remains is confirming the results match 0.8.6 on the golden data. Moving changes the baseline, so it needs an explicit, documented decision.
+- **Treetime version:** decided 2026-10-05: the latest, 0.12.1. Ancestral sequences were identical to 0.7.6 (the preprint's) and 0.8.6 (the README's) on both fixtures, and POUTINE's output unchanged ([treetime-version-comparison.md](treetime-version-comparison.md)). Still to be repeated on the published dataset.
 - **Is `compiled/` or `src/` the truth?** Settled in step 0.
 - **Licence for `coevolution`, and authorship of `Fasta_Manager` / `Fasta_Record`:** ask the previous maintainer and the Gerstein lab. Source for both is now in `src/` (vendored and reconstructed respectively).
 - **Maven vs Gradle:** Maven recommended; confirm there is no preference.
