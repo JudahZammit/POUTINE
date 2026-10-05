@@ -1,5 +1,6 @@
 /*
- * Reconstructed from the committed bytecode (compiled/Fasta_Record.class); the original source was never committed.
+ * Reconstructed from the old committed bytecode (compiled/Fasta_Record.class, removed from the repository; last in git history
+ * at commit d0d4a6c); the original source was never committed.
  * Written to be behavior-equivalent, including its quirks (see getHeader()). Presumed to be part of POUTINE (GPL-3),
  * authorship to be confirmed with the previous maintainer: see docs/third-party-and-licensing.md.
  */

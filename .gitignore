@@ -29,3 +29,6 @@ hs_err_pid*
 .claude/settings.local.json
 # Maven build output
 /target/
+
+# The old committed class files and jars were removed (see docs/launcher.md); never track build output here
+/compiled/

@@ -46,7 +46,7 @@ Tracked in detail in the `PLAN.md` on `streamline-installation`.
 - [x] Pinned JDK, a conda `environment.yml` and a generated Linux-only `conda-lock.yml` (see [environment.md](environment.md)) (Python, treetime, OpenJDK, Maven), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
 - [ ] Resolved treetime version, with the reasons recorded.
 - [x] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below). Done 2026-10-05: see [launcher.md](launcher.md).
-- [ ] Committed `compiled/` removed once the build reproduces it.
+- [x] Committed `compiled/` removed (2026-10-05), after the build was shown to reproduce it; recoverable from history (see [launcher.md](launcher.md)).
 - [x] README Installation section updated (2026-10-05), with the instructions verified from a fresh clone.
 
 ### Entrypoint

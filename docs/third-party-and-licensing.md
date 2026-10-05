@@ -21,7 +21,7 @@ When code carries no licence, copyright law normally leaves all rights with its 
 | commons-math3 3.6.1 | `BinomialTest` | Apache-2.0 (to be confirmed from the artifact when the build is added) | Declare in the recipe |
 | treetime | External program, run as a subprocess; **not redistributed** | Not bundled, so it does not affect POUTINE's redistribution. Confirm its licence before the recipe declares it as a run dependency. | Declare as a dependency, do not bundle |
 
-Third-party jars currently committed in `compiled/` (coevolution, commons-math3, picocli) are themselves a form of redistribution. The planned Maven build replaces the last two with Maven Central dependencies.
+The third-party jars that used to be committed in `compiled/` (coevolution, commons-math3, picocli) were themselves a form of redistribution. That directory was removed from the repository (2026-10-05; last present at commit `d0d4a6c`), and commons-math3 and picocli now come from Maven Central. The coevolution jar remains in git history.
 
 ## Coevolution classes
 
@@ -55,7 +55,7 @@ They are byte-identical to the archived upstream files (checked by SHA-256). Do 
 | **2. Replace the five classes** with an openly licensed Newick library or an independent implementation | Yes | Must reproduce the exact tree structure: node names, internal-node labels (treetime output), branch lengths, parsing edge cases. Needs the golden test first. An independent implementation must be written from behavior, not by porting the old code line by line. Candidate libraries need their licences checked. |
 | **3. Fetch from the Wayback Machine at build time** instead of vendoring | **No.** The built package would still contain the code, and an archive URL is a fragile build source. | Not recommended |
 | **4. Publish the classes as a separate package** | **No.** Same redistribution question, moved elsewhere. | Not recommended |
-| **5. Keep vendored, do not publish to bioconda** | Not resolved, only deferred. The repository already contains the compiled jar. | Acceptable for development on this branch, not for release |
+| **5. Keep vendored, do not publish to bioconda** | Not resolved, only deferred. The repository's git history still contains the compiled jar (the working tree no longer does). | Acceptable for development on this branch, not for release |
 
 Recommendation: pursue 1 now (a short email to the Gerstein lab and the previous maintainer), and treat 2 as the fallback if no licence can be obtained.
 

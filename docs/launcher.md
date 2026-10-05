@@ -1,6 +1,6 @@
 # The `poutine` launcher
 
-`bin/poutine` is the way to run POUTINE. It replaces the old `poutine.sh`, which ran class files committed in `compiled/` through a relative classpath and so only worked from the repo root. It is deliberately small (12 lines of code); this page explains what each part is for.
+`bin/poutine` is the way to run POUTINE. It replaces the old `poutine.sh`, which ran class files committed in `compiled/` (now removed) through a relative classpath and so only worked from the repo root. It is deliberately small (12 lines of code); this page explains what each part is for.
 
 ## Use
 
@@ -42,11 +42,20 @@ The old `poutine.sh` was `java -cp "compiled:..." Homoplasy_Counter $@`. Reprodu
 
 ## `poutine.sh`
 
-Now only a deprecation shim: it prints a notice to standard error and forwards everything to `bin/poutine`. It no longer runs the committed `compiled/` classes, so a build is needed first. The legacy command, for comparing against the committed classes while they still exist, is:
+Kept for backwards compatibility (decision 2026-10-05), but now only a shim: it prints a deprecation notice to standard error and forwards everything to `bin/poutine`. It no longer runs the old committed classes, so a build is needed first.
+
+## Running the legacy build from history
+
+The old `compiled/` directory (class files plus the coevolution, commons-math3 and picocli jars) was removed from the repository. The last commit that contains it is `d0d4a6c`. To run it, for example to compare a result against the legacy build, check that commit out into a separate worktree and use the old command from there:
 
 ```
+git worktree add ../poutine-legacy d0d4a6c
+cd ../poutine-legacy
 java -cp "compiled:compiled/coevolution.jar:compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" Homoplasy_Counter <options>
+git worktree remove ../poutine-legacy        # when done
 ```
+
+This was tested: from a worktree of that commit the legacy classes reproduce the legacy baseline on the toy fixture. If this commit may become unreachable (for example after squash-merging and deleting the branch), tag it first, for example `git tag legacy-compiled d0d4a6c`.
 
 ## Tests
 
