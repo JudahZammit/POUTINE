@@ -1,81 +1,23 @@
 #!/bin/sh
-# poutine: launcher for POUTINE.
-#
-# Runs the POUTINE jar with the Java from the active environment, after checking that the requirements are met.
-# Works from any directory, and through symlinks (for example ln -s /path/to/POUTINE/bin/poutine ~/.local/bin/poutine).
-#
-# Environment variables:
-#   POUTINE_JAR        path to the jar to run (default: found relative to this script, see below)
-#   POUTINE_JAVA_OPTS  extra JVM options, for example "-Xmx16g" (word-split on spaces)
-#   JAVA_HOME          if set and it contains bin/java, that java is used instead of the one on PATH
-#
-# The jar is looked for, in order:
-#   $POUTINE_JAR
-#   <this script's directory>/../share/poutine*/poutine*.jar       (installed layout, for example a conda package)
-#   <this script's directory>/../target/poutine-*.jar              (a source checkout after "mvn package")
-
-MIN_JAVA=21
+# poutine: run POUTINE from any directory (see docs/launcher.md).
+# Needs Java 21+ and treetime on PATH (activate the conda environment) and the jar built with "mvn package".
+# Extra JVM options can be given in POUTINE_JAVA_OPTS, for example POUTINE_JAVA_OPTS="-Xmx16g".
 
 die() {
-    printf 'poutine: %s\n' "$*" >&2
+    echo "poutine: $*" >&2
     exit 1
 }
 
-# --- locate this script's real directory, resolving symlinks ---------------------------------------------------------
-self=$0
-while [ -h "$self" ]; do
-    dir=$(cd -P "$(dirname "$self")" && pwd) || die "cannot resolve $self"
-    link=$(readlink "$self") || die "cannot read link $self"
-    case $link in
-        /*) self=$link ;;
-        *) self=$dir/$link ;;
-    esac
-done
-bindir=$(cd -P "$(dirname "$self")" && pwd) || die "cannot resolve $self"
-
-# --- locate the jar --------------------------------------------------------------------------------------------------
+# The jar is in ../target relative to this script; readlink -f makes this work through symlinks too.
+dir=$(dirname "$(readlink -f "$0")")
 jar=
-if [ -n "${POUTINE_JAR:-}" ]; then
-    [ -f "$POUTINE_JAR" ] || die "POUTINE_JAR is set but is not a file: $POUTINE_JAR"
-    jar=$POUTINE_JAR
-else
-    for candidate in "$bindir"/../share/poutine*/poutine*.jar "$bindir"/../target/poutine-*.jar; do
-        if [ -f "$candidate" ]; then
-            jar=$candidate  # with several matches the last (highest) one wins
-        fi
-    done
-    [ -n "$jar" ] || die "cannot find the POUTINE jar. In a source checkout, build it with 'mvn package' (inside the conda environment: see docs/environment.md). Otherwise set POUTINE_JAR."
-fi
+for f in "$dir"/../target/poutine-*.jar; do [ -f "$f" ] && jar=$f; done
+[ -n "$jar" ] || die "jar not found: build it with 'mvn package' inside the conda environment (see docs/environment.md)."
 
-# --- locate java -----------------------------------------------------------------------------------------------------
-if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
-    java=$JAVA_HOME/bin/java
-else
-    java=$(command -v java) || die "java not found. Activate the conda environment (conda activate poutine) or install JDK $MIN_JAVA or newer."
-fi
+command -v java > /dev/null || die "java not found: activate the conda environment (conda activate poutine)."
+major=$(java -version 2>&1 | sed -n 's/.* version "\([0-9]*\).*/\1/p' | head -n 1)
+[ "${major:-0}" -ge 21 ] || die "Java 21 or newer is required (found ${major:-none}): activate the conda environment (conda activate poutine)."
 
-# --- Java version check (the first number after: version "...") ------------------------------------------------------
-java_major=$("$java" -version 2>&1 | sed -n 's/.* version "\([0-9]*\)[."].*/\1/p' | head -n 1)
-case $java_major in
-    '' | *[!0-9]*) die "could not determine the Java version of $java" ;;
-esac
-[ "$java_major" -ge "$MIN_JAVA" ] || die "Java $MIN_JAVA or newer is required, but $java is Java $java_major. Activate the conda environment (conda activate poutine)."
-
-# --- treetime check: only needed when POUTINE has to run ancestral reconstruction ------------------------------------
-# Skipped for -u/--use-precomputed-anc-recon (treetime is not used), and for help and version output.
-needs_treetime=yes
-for arg in "$@"; do
-    case $arg in
-        --use-precomputed-anc-recon | --help | --version) needs_treetime=no ;;
-        --*) ;;
-        -*[uhV]*) needs_treetime=no ;;  # short options, possibly clustered (for example -Du or -h)
-    esac
-done
-if [ "$needs_treetime" = yes ]; then
-    command -v treetime >/dev/null 2>&1 || die "treetime not found on PATH. Activate the conda environment (conda activate poutine), or pass -u with a precomputed ancestral reconstruction."
-fi
-
-# --- run -------------------------------------------------------------------------------------------------------------
 # POUTINE_JAVA_OPTS is deliberately unquoted so that several options can be given.
 # shellcheck disable=SC2086
-exec "$java" ${POUTINE_JAVA_OPTS:-} -jar "$jar" "$@"
+exec java ${POUTINE_JAVA_OPTS:-} -jar "$jar" "$@"

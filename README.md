@@ -24,6 +24,13 @@ Stay tuned as POUTINE will continue to evolve to include [new major features](ht
 
 ## Updates
 
+### 2026 October 5
+Installation has been reworked so that everything POUTINE needs comes from one pinned conda environment (see [Installation](#installation)).  The main changes:
+*   POUTINE is now built with Maven and run with the new `bin/poutine` launcher, which replaces `poutine.sh` (still present, but only as a deprecated shim that forwards to the launcher).
+*   Java 21 is now required.  The conda environment provides it.
+*   POUTINE is supported on **Linux only**.
+*   The treetime guidance in the 2022 entries below (use 0.8.6, curly braces) is superseded: the environment pins treetime 0.12.1, the latest release, and the curly-brace problem did not occur with it.  On our two test datasets treetime 0.7.6, 0.8.6 and 0.12.1 give identical ancestral sequences and identical POUTINE results (details in [docs/treetime-version-comparison.md](docs/treetime-version-comparison.md)).
+
 ### 2022 November 30
 Updated the README to include our recommendation to use homoplasy counting for intermediate and highly recombining pops (and not just clonal pops).  We got this question a lot, so we hope this guidance helps.    
 
@@ -34,6 +41,8 @@ First, the Neher lab has informed us that treetime's curly brace bug will likely
 2.  Install a recent version of treetime that does not have this curly brace bug (version 0.8.6).  One can do this using pip with the following line:
 `pip install phylo-treetime==0.8.6`
 
+*(Superseded: see the 2026 October 5 update.  The two workarounds above are no longer needed.)*
+
 Second, the Neher lab has also informed us that treetime does not currently work on Windows.  A future release of treetime may support Windows, so stay tuned.  Until such time, POUTINE will not run on Windows.
   
 ### 2022 June 14
@@ -41,21 +50,47 @@ There is a known issue with the latest version of Treetime (0.9.0 and above) whe
 
 ## Installation
 
-POUTINE requires:
+POUTINE runs on **Linux**.  Windows is not supported because treetime does not run there, and macOS is not currently a supported platform.
 
-*   java (https://www.oracle.com/java/technologies/javase-downloads.html)
-*   python (https://www.python.org/downloads/) 
-*   treetime (https://treetime.readthedocs.io/en/latest/installation.html) (use version 0.8.6 for now, see update above)
+The recommended route is conda (or micromamba), which provides the exact Java, Maven and treetime versions POUTINE is tested with in one pinned environment:
 
-Users are encouraged to use the latest version of the Java Virtual Machine (JVM) for both substantial speed and memory improvements compared to much older JVMs (e.g. Java 8) currently installed on many machines.
+```
+git clone https://github.com/Peter-Two-Point-O/POUTINE.git
+cd POUTINE
+micromamba create -n poutine -f conda-lock.yml     # or, with conda: conda-lock install -n poutine conda-lock.yml
+micromamba activate poutine                        # or: conda activate poutine
+mvn package                                        # builds target/poutine-1.0.0.jar
+bin/poutine --help
+```
 
-A Docker and Conda version of POUTINE will likely feature soon as well.
+To get a plain `poutine` command, link the launcher into the environment (the link can be recreated at any time and survives rebuilding the jar):
+
+```
+ln -s "$PWD/bin/poutine" "$CONDA_PREFIX/bin/poutine"
+```
+
+The environment contains:
+
+*   Java 21 (a JVM of at least this version is required; newer JVMs bring substantial speed and memory improvements over old ones such as Java 8)
+*   Maven (only needed to build POUTINE)
+*   treetime 0.12.1 and its Python dependencies (only needed when POUTINE has to run the ancestral reconstruction; not needed with `-u`)
+
+[conda-lock.yml](conda-lock.yml) fixes every package version and checksum, so everyone gets the same environment.  See [docs/environment.md](docs/environment.md) for how it is built and updated.  A bioconda package is planned.
+
+Without conda you need JDK 21 or newer, Maven 3.9 or newer, and `treetime` on your `PATH`; this route is not tested.
 
 ## Executing The Program
 
-Execute: `./poutine.sh --help` to see all command-line options.
+Execute: `bin/poutine --help` to see all command-line options.
 
-Setting poutine.sh into your global path will allow you to call poutine.sh from anywhere (you won't need the ./).
+`bin/poutine` works from any directory.  It stops with a clear message if Java 21 or newer is not available.  If you linked it into your environment as shown above, simply run `poutine --help`.  More about the launcher (including `POUTINE_JAVA_OPTS` for JVM options such as `-Xmx16g`) is in [docs/launcher.md](docs/launcher.md).
+
+Small example datasets to try are in [tests/data](tests/data); for example, from the repository root:
+
+```
+bin/poutine -f tests/data/mtb-reference/mtb_maf_05.fasta -t tests/data/mtb-reference/mtb_maf05.newick \
+    -p tests/data/mtb-reference/mtb.phenos -m tests/data/mtb-reference/mtb_maf_05.map -r 10000 -d results
+```
 
 Since a picture is worth a thousand words:  
 
@@ -132,7 +167,7 @@ See the [LICENSE](https://github.com/Peter-Two-Point-O/Easy-Is-Better-Than-Bette
 
 *   Removed q-values from the significance assessment. Thus, all things R have been removed. The main reason for this feature removal is because the resampling-derived FWER (maxT variant) is sufficient for users to sort and look for top hits (remember the philosophy here is "easier is better than better"). It's also more robust than many methods in the FDR space because max(T) better address dependency structures between segregating sites.  In a future release, when we are likely to add estimation statistics like a resampling-derived effect size + confidence intervals, we can reconsider the progress of FDR-based methods for addressing dependence structures.
 *   Incorporated treetime for purposes of genotypic ancestral reconstruction using the default optimized joint probabilities method.
-*   The program should be fully platform-independent now. ~Waiting for Windows users to get back to us to verify. Tests on MacOS/Intel and Linux/Intel were successful. NOTE: Windows users should check out the code from the platform\_independence branch. Once we verify it works, we'll merge this branch back into master.~
+*   (Historical note, 2020: current support is Linux only, see Installation.) The program should be fully platform-independent now. ~Waiting for Windows users to get back to us to verify. Tests on MacOS/Intel and Linux/Intel were successful. NOTE: Windows users should check out the code from the platform\_independence branch. Once we verify it works, we'll merge this branch back into master.~
 *   Full command-line interface. This will be our store-front! so will try to make this elegant and easy.
 *   Incorporate consume\_results.sh code into the main program along with other facilities to sort and pretty-format results.
 *   Organize all program output (e.g. various results files, log file, debugging file, proper console messages, etc).

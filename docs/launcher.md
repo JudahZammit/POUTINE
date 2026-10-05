@@ -1,6 +1,6 @@
 # The `poutine` launcher
 
-`bin/poutine` is the way to run POUTINE. It replaces the old `poutine.sh`, which ran class files committed in `compiled/` through a relative classpath and so only worked from the repo root.
+`bin/poutine` is the way to run POUTINE. It replaces the old `poutine.sh`, which ran class files committed in `compiled/` through a relative classpath and so only worked from the repo root. It is deliberately small (12 lines of code); this page explains what each part is for.
 
 ## Use
 
@@ -17,18 +17,24 @@ It works from any directory and through symlinks. To get a plain `poutine` comma
 ln -s "$PWD/bin/poutine" "$CONDA_PREFIX/bin/poutine"     # with the conda environment active
 ```
 
-The jar is found relative to the real location of the script, so the link can sit anywhere. Rebuilding the jar needs no re-install.
+The jar is found relative to the real location of the script (`readlink -f`), so the link can sit anywhere, and rebuilding the jar needs no re-install.
 
 ## What it does
 
-1. **Finds the jar**, in this order: `$POUTINE_JAR`; `<script dir>/../share/poutine*/poutine*.jar` (the installed layout, for the conda package); `<script dir>/../target/poutine-*.jar` (a source checkout after `mvn package`). With several matches the last, highest one wins.
-2. **Finds Java:** `$JAVA_HOME/bin/java` if it exists (conda sets `JAVA_HOME`), else `java` on `PATH`. `JAVA_HOME` therefore wins over `PATH`. Requires Java 21 or newer, with a clear message otherwise.
-3. **Checks `treetime` is on `PATH`**, unless it will not be used: the check is skipped for `-u` / `--use-precomputed-anc-recon` (also inside clustered short options such as `-Du`), and for help and version output (`-h`, `--help`, `-V`, `--version`).
-4. **Runs** `java $POUTINE_JAVA_OPTS -jar <jar> "$@"` with `exec`, so POUTINE's exit code is the launcher's exit code and arguments (including paths with spaces) pass through untouched.
+1. **Finds the jar** in `<script dir>/../target/poutine-*.jar` (the output of `mvn package`). With several matches the last, highest one wins. If none exists it says to build it.
+2. **Checks Java:** `java` on `PATH` must be version 21 or newer, otherwise it stops with a one-line message instead of Java's `UnsupportedClassVersionError`. (Activating the conda environment puts the right `java` first on `PATH`.)
+3. **Runs** `java $POUTINE_JAVA_OPTS -jar <jar> "$@"` with `exec`, so POUTINE's exit code is the launcher's exit code, and arguments, including paths with spaces, pass through untouched.
 
-Environment variables: `POUTINE_JAR`, `POUTINE_JAVA_OPTS` (extra JVM options such as `-Xmx16g`, split on spaces), `JAVA_HOME`.
+`POUTINE_JAVA_OPTS` holds extra JVM options such as `-Xmx16g` (split on spaces). Launcher errors exit with code 1 and print `poutine: <message>` to standard error. POUTINE's own usage errors keep picocli's exit code 2.
 
-Launcher errors exit with code 1 and print `poutine: <message>` to standard error. POUTINE's own usage errors keep picocli's exit code 2.
+## What the old script got wrong
+
+The old `poutine.sh` was `java -cp "compiled:..." Homoplasy_Counter $@`. Reproduced failures:
+
+- A path with a space was split in two by the unquoted `$@` (`/data/my samples/phenos.txt` became `/data/my` and `samples/phenos.txt`).
+- The relative classpath only worked from the repo root.
+- Java older than 21 ended in an `UnsupportedClassVersionError` stack trace.
+- A missing treetime ends in a generic "error during ancestral reconstruction" message that does not say treetime is not installed. The launcher does not check for it: treetime is a documented requirement (it comes with the conda environment), and failing without it is acceptable.
 
 ## Version
 
@@ -44,18 +50,21 @@ java -cp "compiled:compiled/coevolution.jar:compiled/commons-math3-3.6.1.jar:com
 
 ## Tests
 
-[tests/tools/test_launcher.sh](../tests/tools/test_launcher.sh) (28 checks, shellcheck-clean; needs the conda environment and a built jar):
+[tests/tools/test_launcher.sh](../tests/tools/test_launcher.sh) (18 checks, shellcheck-clean; needs Java 21 and a built jar, so run it inside the conda environment):
 
 ```
 micromamba run -n poutine sh tests/tools/test_launcher.sh
 ```
 
-It covers jar and Java lookup, symlinks, paths with spaces, `POUTINE_JAVA_OPTS`, `JAVA_HOME`, the treetime and Java-version checks (including the `-u` and help exemptions), exit-code pass-through, and running under `dash` and `bash --posix`. It does not compare scientific output.
+It covers jar lookup (including through a symlink and a missing jar), the Java version check, paths with spaces, `POUTINE_JAVA_OPTS`, exit-code pass-through, and running under `dash` and `bash --posix`. It does not compare scientific output.
 
-Also checked when the launcher was written: a set of 15 CLI invocations (help, version, no arguments, invalid values, unknown and missing options, clustered flags) gives byte-identical output and exit codes before and after this change.
+Also checked when the launcher was written: a set of 15 CLI invocations (help, version, no arguments, invalid values, unknown and missing options, clustered flags) gives byte-identical output and exit codes before and after this change, and both fixtures run through the launcher (via a symlink in the environment, with `-u` and with a full treetime run) match the legacy build on the deterministic output columns.
 
-## Gotchas
+## Left out on purpose
 
-- **Do not run the test script without clearing `JAVA_HOME` in your own experiments.** conda sets it, and the launcher prefers it over `PATH`, so a fake or restricted `PATH` is ignored. The test script unsets it for that reason.
-- **The treetime skip is deliberately loose.** Any short-option cluster containing `u`, `h` or `V` skips the check (so a value attached to `-d`, like `-dhome`, also does). The cost of a false skip is only that POUTINE's own treetime error appears instead of the launcher's.
-- **Non-conda installs are secondary.** The supported route is the conda environment. Outside it, set `POUTINE_JAR` and make sure Java 21 and treetime are available.
+A first version was larger (49 lines of code) and also had these features; the launcher then lost its treetime check too, leaving 12. They were removed as not needed yet; add them back if a need appears.
+
+- **`JAVA_HOME` support.** The activated conda environment puts the right `java` first on `PATH`, so it was redundant. (It also overrode `PATH`, which made testing with a restricted `PATH` confusing.)
+- **`POUTINE_JAR` override and an installed `share/poutine*/` jar location.** Only useful for a packaged install, such as the bioconda recipe, which does not exist yet (see [third-party-and-licensing.md](third-party-and-licensing.md)). When it does, the recipe can install the jar next to the launcher, or the lookup can grow a `share/` path again.
+- **A hand-written symlink-resolving loop,** replaced by `readlink -f` since only Linux is supported.
+- **Any treetime check.** First a refusal (which needed clustered-option parsing to avoid blocking a valid `-Du` run), then a warning. Removed by decision: treetime is a stated requirement and it is fine for POUTINE to fail without it.

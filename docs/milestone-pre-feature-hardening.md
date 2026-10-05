@@ -47,18 +47,18 @@ Tracked in detail in the `PLAN.md` on `streamline-installation`.
 - [ ] Resolved treetime version, with the reasons recorded.
 - [x] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below). Done 2026-10-05: see [launcher.md](launcher.md).
 - [ ] Committed `compiled/` removed once the build reproduces it.
-- [ ] README Installation section updated.
+- [x] README Installation section updated (2026-10-05), with the instructions verified from a fresh clone.
 
 ### Entrypoint
 
 Goal: after installation the user types `poutine <options>` from any directory, with no repo checkout, no relative classpath and no manual `PATH` edit. This replaces `poutine.sh`, which only works from the repo root, hard-codes the classpath, and passes `$@` unquoted (so paths containing spaces break).
 
 - [x] **Runnable jar.** The build produces a single shaded jar with `Main-Class: Homoplasy_Counter` in its manifest, so the program runs as `java -jar poutine.jar`. This removes the four-jar classpath string. Done.
-- [x] **`poutine` launcher** (POSIX `sh`, installed into `bin/`): Done (`bin/poutine`, tested by `tests/tools/test_launcher.sh`).
+- [x] **`poutine` launcher** (POSIX `sh`, installed into `bin/`): Done, then slimmed to 12 lines of code (`bin/poutine`, tested by `tests/tools/test_launcher.sh`; see [launcher.md](launcher.md) for what was left out and why). It does not check for treetime (a stated requirement; failing without it is fine).
   - locates the jar relative to its own real path (resolving symlinks), so it works wherever it is installed or linked;
   - forwards arguments as `"$@"`;
-  - honors `JAVA_HOME` and an optional `POUTINE_JAVA_OPTS` (for example `-Xmx`), so users can size the heap without editing the script;
-  - checks up front that `java` (minimum version per the JDK decision) and `treetime` are on `PATH`, and prints an actionable message if not. Skip the `treetime` check when `-u` is given, since treetime is then not used.
+  - honors an optional `POUTINE_JAVA_OPTS` (for example `-Xmx`), so users can size the heap without editing the script (a `JAVA_HOME` override was dropped as redundant with the conda environment);
+  - checks up front that `java` is at least the minimum version, and prints an actionable message if not. (A `treetime` check was dropped: it is a documented requirement, and failing without it is acceptable.)
 - [x] **Version from the build.** `--version` already exists (picocli, `@Command(name = "poutine", ...)`) but the version string is hard-coded as `1.0.0`. Source it from the build (for example the jar manifest) so the launcher, `--version` and the package version cannot drift apart. A reproducibility record should carry this version. Done (`Poutine_Version`, filtered `poutine.properties`).
 - [ ] **Delivery.** Conda installs `poutine` onto `PATH` automatically (step 7). Outside conda, a documented `make install` / install script (or a release tarball with `bin/poutine` and `share/poutine/poutine.jar`) does the same. Partly done: the conda-environment route is verified (symlink into `$CONDA_PREFIX/bin`); the conda package itself is step 7.
 - [x] **`poutine.sh`:** keep for one release as a thin shim that calls `poutine` and prints a deprecation notice, then delete. Update the README and `CLAUDE.md` to use `poutine`. Done as a shim; README update is still to do. Delete the shim after one release.
