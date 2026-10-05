@@ -24,3 +24,6 @@ hs_err_pid*
 
 # Virtual environment
 /.venv/
+
+# Claude Code local (personal) settings
+.claude/settings.local.json

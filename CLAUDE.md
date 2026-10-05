@@ -46,6 +46,19 @@ The file keeps many earlier iterations, selected by constants and commented-out 
 - Anything useful to a human working on this repo (design rationale, algorithm notes, gotchas, how-tos, file formats) goes in `docs/`, written as clean, well-organized Markdown with clear headings. Split topics into separate files and don't dump everything into one. Keep `CLAUDE.md` for concise guidance aimed at Claude, and link to `docs/` instead of duplicating it.
 - Feature branches may carry a temporary `PLAN.md`. Before deleting it at merge, harvest any design patterns, gotchas or lasting decisions from it into `docs/` (or `CLAUDE.md` if they're short and apply to every session), then delete it. Full process: [docs/feature-branch-workflow.md](docs/feature-branch-workflow.md).
 
+## Shutdown protocol
+
+Claude can't detect that a session is ending, so run this when the user runs `/shutdown` (see `.claude/commands/shutdown.md`), says to wrap up, shut down or end the session, or when a task is finished and the user signals they're done:
+
+1. Review the session for anything a future session or a human contributor would need that the code and git history don't already show: decisions and their reasons, approaches tried and rejected, gotchas, corrected misunderstandings, new commands or conventions.
+2. Route it, following the Documentation rules above:
+   - Short rules that apply to every session go in `CLAUDE.md`.
+   - Longer explanations and rationale go in a topic file in `docs/`.
+   - If a `PLAN.md` exists, update its checklist, open questions and "what's next" so the next session can resume from it.
+3. Fix or remove anything in `CLAUDE.md` or `docs/` that this session showed to be wrong or stale. Don't just append.
+4. Skip anything derivable from the code, anything only relevant to this conversation, and speculation. Record only what was verified.
+5. Summarize what was added and where, and list any uncommitted changes. Don't commit or push unless asked.
+
 ## Conventions seen in the code
 
 - snake_case method and variable names, and class names like `Homoplasy_Events`, with inner classes for data holders. This is not standard Java style, so match it.
