@@ -11,10 +11,10 @@ POUTINE is a homoplasy-counting GWAS tool for microbial genomes (GPL-3, alpha). 
 There is no Maven/Gradle, no tests, and no linter. Dependencies are the jars committed in `compiled/` (commons-math3, picocli, and `coevolution.jar`, which provides `NewickTree`/`NewickTreeNode` from `org.gersteinlab.coevolution`).
 
 - Run: `./poutine.sh <options>` (`--help` lists them). The script is `java -cp "compiled:compiled/coevolution.jar:compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" Homoplasy_Counter`. The classpath is relative, so **run it from the repo root**.
-- Recompile (no documented command; this mirrors the classpath above): `javac -cp "compiled/coevolution.jar:compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" -d compiled src/Homoplasy_Counter.java`
+- Recompile (no documented command; verified to work): `javac -cp "compiled:compiled/coevolution.jar:compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" -d compiled src/Homoplasy_Counter.java`. The leading `compiled` entry is required: `Fasta_Manager`/`Fasta_Record` exist only as committed `.class` files, so without it javac fails with "cannot find symbol". To test a compile without touching the committed classes, point `-d` at a scratch directory.
 - **Editing `src/` has no effect until you recompile into `compiled/`.** The `.class` files are committed and are what `poutine.sh` runs. The last commit touching `src/` (dfc16ba) did not touch `compiled/`, so the committed classes may be stale relative to the source.
 - Committed classes are Java 14 bytecode (class version 58), so a JVM of 14+ is required.
-- `compiled/Fasta_Manager.class` and `Fasta_Record.class` have no source in this repo.
+- `compiled/Fasta_Manager.class` and `Fasta_Record.class` have no source in this repo, so never delete or clean `compiled/`.
 - External requirement: `treetime` must be on `PATH` (the program shells out to `treetime ancestral ...`). The README pins `phylo-treetime==0.8.6`, because 0.9.0+ puts curly braces in its output filenames and breaks parsing. Treetime does not work on Windows. A local `.venv/` is gitignored, so activate it before running.
 - No sample data is in the repo. To exercise it you need a variable-sites multi-FASTA, a Newick tree, a phenotype file (tab-delimited, no header, `sample<TAB>0|1`) and a physical-positions/PLINK `.map` file. `--vcf` is declared but not implemented.
 
@@ -44,6 +44,7 @@ The file keeps many earlier iterations, selected by constants and commented-out 
 ## Documentation
 
 - Anything useful to a human working on this repo (design rationale, algorithm notes, gotchas, how-tos, file formats) goes in `docs/`, written as clean, well-organized Markdown with clear headings. Split topics into separate files and don't dump everything into one. Keep `CLAUDE.md` for concise guidance aimed at Claude, and link to `docs/` instead of duplicating it.
+- Active milestone: [docs/milestone-pre-feature-hardening.md](docs/milestone-pre-feature-hardening.md) (reproducibility, golden test, seeds, lint, refactor, CI, conda, all before the burden-test feature). Output must not change; see [docs/reproducibility.md](docs/reproducibility.md) for the known risks (unseeded RNG, racy `r_a1++`/`r_a2++`).
 - Feature branches may carry a temporary `PLAN.md`. Before deleting it at merge, harvest any design patterns, gotchas or lasting decisions from it into `docs/` (or `CLAUDE.md` if they're short and apply to every session), then delete it. Full process: [docs/feature-branch-workflow.md](docs/feature-branch-workflow.md).
 
 ## Shutdown protocol
