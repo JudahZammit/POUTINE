@@ -110,7 +110,7 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 
 - [ ] Minimum: `conda env create -f environment.yml` plus a documented local install that puts `poutine` on `PATH`.
 - [ ] Target: a bioconda recipe that builds from source, installs jars to `share/poutine`, ships the `poutine` launcher from step 1 in `bin/`, depends on `openjdk` and a pinned `phylo-treetime`, and runs the golden test in the recipe's `test:` section.
-- [ ] Prerequisites from step 0: buildable from source, known dependency licenses and sources, and a tagged release to build from.
+- [ ] Prerequisites from step 0: buildable from source, known dependency licenses and sources, and a tagged release to build from. **Licensing is a hard gate:** bioconda requires that licences allow redistribution, and the vendored coevolution classes and `Fasta_*` have no known licence. Track it in [third-party-and-licensing.md](third-party-and-licensing.md).
 - [ ] Decide on a Dockerfile (the README says one "will likely feature soon"); lower priority than conda.
 
 ## Open questions
