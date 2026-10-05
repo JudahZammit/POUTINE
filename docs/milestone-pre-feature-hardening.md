@@ -42,7 +42,7 @@ Tracked in detail in the `PLAN.md` on `streamline-installation`.
 
 - [x] Build system with pinned, updatable dependencies instead of committed jars (`pom.xml`, shaded jar; verified 2026-10-05).
 - [ ] Update dependencies (picocli, JDK target, treetime decision; commons-math3 stays pinned) one at a time, comparing deterministic columns exactly against the pre-update reference, then revalidate against the published results.
-- [x] (lock file still to do) Pinned JDK and a conda `environment.yml` (Python, treetime, OpenJDK, Maven), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
+- [x] Pinned JDK, a conda `environment.yml` and a generated Linux-only `conda-lock.yml` (see [environment.md](environment.md)) (Python, treetime, OpenJDK, Maven), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
 - [ ] Resolved treetime version, with the reasons recorded.
 - [ ] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below).
 - [ ] Committed `compiled/` removed once the build reproduces it.
@@ -102,13 +102,13 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 
 - [ ] Jobs: build, lint, unit tests, golden test (`-T 1` and `-T 4`), treetime smoke test.
 - [ ] Create the environment from `environment.yml`, with caching, so CI runs what users get.
-- [ ] Matrix: Linux primary; macOS if cheap, as a cross-platform floating-point check. Windows is unsupported because treetime does not run there.
+- [ ] Matrix: Linux only (decision 2026-10-05). Windows is unsupported because treetime does not run there, and macOS is not a target.
 - [ ] Keep it fast: small dataset, moderate replicate count.
 - [ ] A job that builds the conda package (step 7).
 
 ## Step 7: Conda packaging
 
-- [ ] Minimum: `conda env create -f environment.yml` plus a documented local install that puts `poutine` on `PATH`.
+- [ ] Minimum: `micromamba create -n poutine -f conda-lock.yml` plus a documented local install that puts `poutine` on `PATH`.
 - [ ] Target: a bioconda recipe that builds from source, installs jars to `share/poutine`, ships the `poutine` launcher from step 1 in `bin/`, depends on `openjdk` and a pinned `phylo-treetime`, and runs the golden test in the recipe's `test:` section.
 - [ ] Prerequisites from step 0: buildable from source, known dependency licenses and sources, and a tagged release to build from. **Licensing is a hard gate:** bioconda requires that licences allow redistribution, and the vendored coevolution classes and `Fasta_*` have no known licence. Track it in [third-party-and-licensing.md](third-party-and-licensing.md).
 - [ ] Decide on a Dockerfile (the README says one "will likely feature soon"); lower priority than conda.

@@ -1,15 +1,22 @@
 # Development and runtime environment for POUTINE.
 #
-#   conda env create -f environment.yml     (or: micromamba create -f environment.yml)
-#   conda activate poutine
-#   mvn package                             # builds target/poutine-<version>.jar
+#   micromamba create -n poutine -f conda-lock.yml     (exact, reproducible; or: conda-lock install -n poutine conda-lock.yml)
+#   micromamba activate poutine
+#   mvn package                                        # builds target/poutine-<version>.jar
 #
-# Everything that affects results is pinned here: the JDK and Maven that build the program, and treetime, which
+# This file says what we ask for; conda-lock.yml records exactly what we get (all packages, versions and checksums).
+# Re-lock after editing this file. See docs/environment.md.
+#
+# Everything that affects results is pinned: the JDK and Maven that build the program, and treetime, which
 # produces the ancestral reconstruction POUTINE consumes.
 channels:
   - conda-forge
   - bioconda
   - nodefaults
+# Only Linux is supported (treetime does not run on Windows, and macOS is not a target). Used by conda-lock only;
+# conda and micromamba ignore it.
+platforms:
+  - linux-64
 dependencies:
   # Build and runtime JDK. The pom.xml requires at least JDK 17 to build; 21 is the current LTS.
   - openjdk=21

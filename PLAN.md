@@ -14,7 +14,7 @@ Out of scope: seeds, golden test, linting, refactoring, CI, bioconda recipe (lat
 
 - **Build system:** Maven (recommended; Gradle is an acceptable alternative), itself pinned via the conda environment rather than a committed `mvnw` wrapper. `commons-math3` and `picocli` come from Maven Central at pinned versions. `coevolution` is vendored from source and `Fasta_*` is reconstructed (see prerequisites), so everything builds from `src/`.
 - **JDK:** pin to 17 or later (LTS) via `maven.compiler.release`. Current bytecode is Java 14.
-- **Python side:** `environment.yml` (conda) pinning Python, `phylo-treetime` and OpenJDK, with a lock file if feasible.
+- **Python side:** `environment.yml` (conda) plus a generated `conda-lock.yml` fixing the whole dependency tree; Linux (linux-64) only, by decision on 2026-10-05. See [docs/environment.md](docs/environment.md).
 - **Entrypoint:** a `poutine` command replaces `poutine.sh`: shaded runnable jar plus a POSIX `sh` launcher that finds the jar relative to itself, forwards `"$@"`, honors `POUTINE_JAVA_OPTS`, and checks for `java` and `treetime` with clear errors. Full requirements and rejected alternatives are in the milestone's [Entrypoint](docs/milestone-pre-feature-hardening.md#entrypoint) section.
 
 ## Validation strategy: published results first, golden output last
@@ -53,7 +53,7 @@ Versions below were looked up on 2026-10-05 (Maven Central, PyPI).
 
 | Dependency | Now | Latest found | Can it change results? | Plan |
 |---|---|---|---|---|
-| JDK | Java 14 bytecode (running on 21 here) | 21 LTS in use | Low. JDK 17+ makes floating point strict by default. | Target `release 17` (or 21). Verify the fixture is unchanged; confirm on macOS in CI later. |
+| JDK | Java 14 bytecode (running on 21 here) | 21 LTS in use | Low. JDK 17+ makes floating point strict by default. | Target `release 17` (or 21). Verify the fixture is unchanged. (Linux only, so no cross-platform check.) |
 | picocli | 4.5.1 (2020) | 4.7.7 (2025-04) | No (CLI only). Could change help text or validation messages. | **Update.** Compare `--help` and `--version` output before and after, then rerun the fixture. |
 | commons-math3 | 3.6.1 (2016) | 3.6.1, **already the last 3.x** | **Yes.** `BinomialTest` produces every p-value. | **Keep, pinned.** The successors are `commons-math4-legacy` (only `4.0-beta1`, 2022) and `commons-statistics-inference` (1.3). Migrating is a separate, optional decision; it would need a bit-for-bit comparison of old vs new binomial p-values over every `(trials, cases, p)` the program can produce. Not part of this branch. |
 | `coevolution.jar` | Gerstein lab *Coevolution* (2007-2008; `Created-By: 1.6.0`, Ant; 67 classes) | Not on Maven Central; project site retired, source recovered from the Wayback Machine (see Prerequisites) | **Yes.** `NewickTree` / `NewickTreeNode` define the tree the homoplasy logic walks. | **Cannot be "updated".** Source recovered and verified identical to the shipped jar. POUTINE uses only 5 classes (~1,000 lines), so vendor just those into `src/` once the license question is settled; any rebuild must be checked against the fixture. |
@@ -101,8 +101,8 @@ Ordered to follow the validation strategy: build, validate, update, revalidate, 
 - [x] Make the build compile the vendored sources and drop `coevolution.jar` from the classpath. Done: the Maven build compiles them and nothing from `coevolution.jar` is used.
 - [ ] Write `docs/dependencies.md`: what each dependency is for, the pinned version, why it was or was not updated, and how to update it safely.
 - [x] Confirm the built jar reproduces the committed `compiled/` behavior on a run (compare output columns that do not depend on randomness). **Done 2026-10-05:** the jar's deterministic columns equal the committed build's on the toy fixture and on `mtb-reference`, both with `-u` and via a full treetime run, run from `/tmp` as well. Bytecode comparison: of 20 `Homoplasy_Counter*` classes, 14 disassemble identically and 6 differ only in compiler-version artifacts (javac 21 vs the original; enum `$values()`, string-concat codegen, the old `$1` switch-map class). Members are identical apart from those synthetics and all 318 string constants match, so `compiled/` is not stale relative to `src/` as far as we can tell. This is strong evidence, not proof of identical logic.
-- [x] Add `environment.yml`. **Still to do:** a lock file (for example `micromamba env export --explicit` per platform, or conda-lock) so the full dependency tree, not only the three pinned packages, is fixed; and record the final treetime decision.
-- [ ] Generate and commit the conda lock file(s) for linux-64 (and osx if CI will use it).
+- [x] Add `environment.yml`. The final treetime decision is still pending.
+- [x] Generate and commit the conda lock file. **Done 2026-10-05:** `conda-lock.yml` for linux-64 only (104 packages; Python 3.14.7, numpy 2.5.3, pandas 3.0.6, scipy 1.18.1, biopython 1.88, openjdk 21.0.10, maven 3.9.16, treetime 0.12.1). Verified by installing from the lock alone into a clean environment, building with `mvn package`, and matching the legacy build's deterministic columns on both fixtures, with `-u` and with a full treetime run. Locking for macOS too gave an older numpy/pandas/Python stack there, which is why the lock is Linux-only. How-to and gotchas: [docs/environment.md](docs/environment.md).
 - [x] Produce a shaded runnable jar (`Main-Class: Homoplasy_Counter`). Done (see `pom.xml` above).
 - [ ] Add the `poutine` launcher in `bin/` and an install route outside conda (install script or release tarball).
 - [ ] Source the version for `--version` from the build instead of the hard-coded `1.0.0`.
@@ -138,4 +138,4 @@ Ordered to follow the validation strategy: build, validate, update, revalidate, 
 
 ## What's next
 
-`environment.yml`, `pom.xml` and the shaded jar are in place and verified against both fixtures (uncommitted at the time of writing). Next: add the conda lock file, then the one-at-a-time dependency updates (JDK target, picocli), the treetime comparison, the `poutine` launcher, and finally removing `compiled/`. The MTB reference set (see the open questions) is the likely validation dataset; its published results and redistribution permission still need confirming.
+`environment.yml`, `conda-lock.yml`, `pom.xml` and the shaded jar are in place and verified against both fixtures. Next: the one-at-a-time dependency updates (JDK target, picocli), the treetime comparison (0.7.6 vs 0.8.6 vs 0.12.1), the `poutine` launcher, the README Installation rewrite (Linux only; drop the macOS and Windows claims), and finally removing `compiled/`. The MTB reference set (see the open questions) is the likely validation dataset; its published results and redistribution permission still need confirming.

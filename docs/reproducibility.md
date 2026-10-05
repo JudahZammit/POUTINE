@@ -16,7 +16,7 @@ Line numbers refer to [src/main/java/Homoplasy_Counter.java](../src/main/java/Ho
 | R6 | **Committed `compiled/` might be stale** relative to `src/` (the last `src/` commit, `dfc16ba`, did not touch `compiled/`). **Largely resolved 2026-10-05:** member sets and all string constants match, and outputs are identical on two fixtures; bytecode differs only by compiler version. | `compiled/` | Strong evidence, not proof, that they agree. |
 | R7 | **Output filenames and logs contain timestamps.** | `more_cmdline_magic()` | Tests must pin `-d`, `-o`, `-l`, `-X` and compare only the `.out` file. The `.log` and `.debug` files contain times and must not be diffed. |
 | R8 | **Missing source** for `Fasta_Manager` / `Fasta_Record` (class files only). **Resolved 2026-10-05:** reconstructed into `src/`, bytecode-identical. | `compiled/` | Was blocking a from-source build, bioconda packaging and refactors touching FASTA parsing. |
-| R9 | Floating-point and library determinism across JDKs and platforms. | commons-math3 `BinomialTest` | JDK 17+ makes floating point strict by default, so pinning JDK 17 or later should make results portable. Verify in CI on Linux and macOS rather than assume. |
+| R9 | Floating-point and library determinism across JDKs and platforms. | commons-math3 `BinomialTest` | JDK 17+ makes floating point strict by default, so pinning JDK 17 or later should make results portable. Only Linux is supported (decision 2026-10-05), so this is checked on Linux in CI. |
 
 ## Validation strategy
 

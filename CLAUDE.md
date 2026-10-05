@@ -8,7 +8,7 @@ POUTINE is a homoplasy-counting GWAS tool for microbial genomes (GPL-3, alpha). 
 
 ## Build and run
 
-Use the conda environment: `conda env create -f environment.yml && conda activate poutine` pins the JDK, Maven and treetime (no Maven Wrapper; see [PLAN.md](PLAN.md)). There are no automated tests yet and no linter; the checks are the fixtures in `tests/data/` (below). Only commons-math3 and picocli are external Java dependencies, both from Maven Central via the `pom.xml` (pinned at the versions POUTINE has always shipped with).
+Use the conda environment, created from the lock file: `micromamba create -n poutine -f conda-lock.yml && micromamba activate poutine` (JDK, Maven, treetime and its whole Python stack, Linux only; no Maven Wrapper). `environment.yml` is the human-edited spec and `conda-lock.yml` is generated from it, so never edit the lock by hand; re-lock and rerun the fixtures after any change. Details and gotchas (small `/tmp`!) are in [docs/environment.md](docs/environment.md). There are no automated tests yet and no linter; the checks are the fixtures in `tests/data/` (below). Only commons-math3 and picocli are external Java dependencies, both from Maven Central via the `pom.xml` (pinned at the versions POUTINE has always shipped with).
 
 - Build: `mvn package` produces `target/poutine-1.0.0.jar`, a single runnable jar (shaded). The `pom.xml` fails the build unless Maven >= 3.9 and JDK >= 17 are used.
 - Run the built jar from any directory: `java -jar target/poutine-1.0.0.jar <options>` (`--help` lists them). The planned `poutine` launcher will replace this.
