@@ -12,7 +12,7 @@ Out of scope: the burden test itself, new mutation groups, any change to the sta
 
 ## Order of work
 
-The golden baseline comes first and the refactor comes last. Steps 1 and 2 both depend on step 0.
+There is no existing golden output, so the order is: **validate the current code against published results, update dependencies, revalidate, then pin the validated behavior as the golden output**. Refactoring comes last. Steps 1 and 2 both depend on step 0. The detail is in the `PLAN.md` on `streamline-installation` and the reasoning in [reproducibility.md](reproducibility.md#validation-strategy).
 
 | Step | Workstream | Branch / status |
 |---|---|---|
@@ -27,16 +27,21 @@ The golden baseline comes first and the refactor comes last. Steps 1 and 2 both 
 
 ## Step 0: Baseline and groundwork (no behavior change)
 
-- [ ] Decide the source of truth: build `src/` at the milestone start and compare with the committed `compiled/` classes on the golden dataset, comparing the deterministic columns exactly. Record the outcome.
+Done so far (2026-10-05): POUTINE runs end to end with Java 21, Python 3.14 and treetime 0.12.1, on a synthetic fixture committed at [tests/data/toy/](../tests/data/toy/README.md). On that fixture a fresh build of `src/` matches the committed classes on the deterministic columns, and treetime 0.12.1 produces no curly-brace filenames. The fixture is a smoke test only, not the golden dataset.
+
+- [ ] Decide the source of truth: build `src/` at the milestone start and compare with the committed `compiled/` classes on the golden dataset, comparing the deterministic columns exactly. Record the outcome. (Toy fixture: match; confirm on the golden dataset.)
 - [ ] Recover or reimplement the source for `Fasta_Manager` / `Fasta_Record`: `javap -c -p` them, check how `Homoplasy_Counter` uses them, and check for an upstream source. Verify identical behavior against the golden deterministic columns.
 - [ ] Identify the source of `coevolution.jar` (`org.gersteinlab.coevolution`): upstream repo, license, and whether it is available from a public artifact repository.
-- [ ] Pick the golden dataset and record its provenance and license in `tests/data/README.md`.
+- [ ] Obtain a dataset with published POUTINE results (candidates: the *M. tuberculosis* discovery and reference sets from the preprint), plus the exact settings used. Record provenance and license in `tests/data/README.md`.
+- [ ] Write down the acceptance criteria for "comparable to published" before running.
+- [ ] Run the current build on it, compare with the published results, and keep the output as the pre-update reference.
 
 ## Step 1: Streamlined, pinned installation
 
 Tracked in detail in the `PLAN.md` on `streamline-installation`.
 
 - [ ] Build system with pinned, updatable dependencies instead of committed jars.
+- [ ] Update dependencies (picocli, JDK target, treetime decision; commons-math3 stays pinned) one at a time, comparing deterministic columns exactly against the pre-update reference, then revalidate against the published results.
 - [ ] Pinned JDK and a conda `environment.yml` (Python, treetime, OpenJDK).
 - [ ] Resolved treetime version, with the reasons recorded.
 - [ ] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below).
@@ -63,7 +68,7 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 ## Step 2: Golden output test
 
 - [ ] `tests/data/`: variable-sites FASTA, newick, phenotype file, `.map`, plus a precomputed ancestral FASTA and newick for `-u`.
-- [ ] Capture the **deterministic-column** legacy baseline before any change in steps 3 to 5, and commit it.
+- [ ] Pin the **deterministic-column** golden output from the build that was validated against the published results and has had its dependencies updated (step 1). Commit it before steps 3 to 5.
 - [ ] Harness that runs POUTINE with pinned `-d/-o/-l/-X`, extracts the `.out` file and diffs it.
 - [ ] A treetime smoke test, separate from the golden test.
 - [ ] Document how to regenerate golden files, and the rule that regenerating them needs a written justification in the commit.
@@ -110,8 +115,9 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 
 ## Open questions
 
-- **Golden dataset:** which one? Options are a subsample of the *M. tuberculosis* data from the manuscript, or a public dataset. It needs enough homoplasic sites (at least `--min_hcount`) to be meaningful. Can it be committed (size, license, privacy)?
-- **Treetime version:** keep 0.8.6 (needs an older Python/numpy stack, to be verified) or move to a current release once the curly-brace filename bug is confirmed fixed and the results match on the golden data? Moving changes the baseline, so it needs an explicit, documented decision.
+- **Published dataset:** which one, and where do its processed inputs come from? The preprint's discovery set (1,330 genomes, PRJNA413593) has public raw reads but apparently no public processed inputs; the 123-genome reference set may be more practical. Can the data, or a subsample, be committed (size, license, privacy)? The golden test may need a smaller derived subset for CI speed.
+- **Published settings:** replicates, `--min_hcount`, POUTINE version and treetime version (preprint: 0.7.6) behind the published tables.
+- **Treetime version:** keep 0.8.6 (needs an older Python/numpy stack, to be verified) or move to a current release? 0.12.1 already ran cleanly on the toy fixture with no curly-brace filenames; what remains is confirming the results match 0.8.6 on the golden data. Moving changes the baseline, so it needs an explicit, documented decision.
 - **Is `compiled/` or `src/` the truth?** Settled in step 0.
 - **Sources for `Fasta_Manager` / `Fasta_Record` and `coevolution`:** ask the previous maintainer.
 - **Maven vs Gradle:** Maven recommended; confirm there is no preference.
