@@ -44,7 +44,7 @@ The file keeps many earlier iterations, selected by constants and commented-out 
 ## Documentation
 
 - Anything useful to a human working on this repo (design rationale, algorithm notes, gotchas, how-tos, file formats) goes in `docs/`, written as clean, well-organized Markdown with clear headings. Split topics into separate files and don't dump everything into one. Keep `CLAUDE.md` for concise guidance aimed at Claude, and link to `docs/` instead of duplicating it.
-- Feature branches may carry a temporary `PLAN.md`. Before deleting it at merge, harvest any design patterns, gotchas or lasting decisions from it into `docs/` (or `CLAUDE.md` if they're short and apply to every session), then delete it.
+- Feature branches may carry a temporary `PLAN.md`. Before deleting it at merge, harvest any design patterns, gotchas or lasting decisions from it into `docs/` (or `CLAUDE.md` if they're short and apply to every session), then delete it. Full process: [docs/feature-branch-workflow.md](docs/feature-branch-workflow.md).
 
 ## Conventions seen in the code
 
