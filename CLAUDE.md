@@ -41,6 +41,11 @@ The file keeps many earlier iterations, selected by constants and commented-out 
 - `qvalues_option = false`, and `EXTANT_NODES_ONLY = true`. The README says q-values and all R usage were removed, but the `qvalues_R` / `fishers_exact_R` methods that shell out to `Rscript` remain, with a hard-coded `R_dir` pointing at the author's home directory. Don't assume R is needed or working.
 - Large `/* ... */` and `//` blocks of old code (including a block of dead code inside `call()`) are common.
 
+## Documentation
+
+- Anything useful to a human working on this repo (design rationale, algorithm notes, gotchas, how-tos, file formats) goes in `docs/`, written as clean, well-organized Markdown with clear headings. Split topics into separate files and don't dump everything into one. Keep `CLAUDE.md` for concise guidance aimed at Claude, and link to `docs/` instead of duplicating it.
+- Feature branches may carry a temporary `PLAN.md`. Before deleting it at merge, harvest any design patterns, gotchas or lasting decisions from it into `docs/` (or `CLAUDE.md` if they're short and apply to every session), then delete it.
+
 ## Conventions seen in the code
 
 - snake_case method and variable names, and class names like `Homoplasy_Events`, with inner classes for data holders. This is not standard Java style, so match it.
