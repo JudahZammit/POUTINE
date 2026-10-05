@@ -15,7 +15,7 @@ Line numbers refer to [src/Homoplasy_Counter.java](../src/Homoplasy_Counter.java
 | R5 | **Unpinned treetime.** The README says `phylo-treetime==0.8.6`, but the local `.venv` had 0.12.1 (Python 3.14, numpy 2.5, pandas 3.0). | `ancestral_reconstruction()`, ~line 824 | A different treetime can give different ancestral states and so different homoplasy counts. |
 | R6 | **Committed `compiled/` may be stale** relative to `src/` (the last `src/` commit, `dfc16ba`, did not touch `compiled/`). | `compiled/` | Unknown which behavior is "current". |
 | R7 | **Output filenames and logs contain timestamps.** | `more_cmdline_magic()` | Tests must pin `-d`, `-o`, `-l`, `-X` and compare only the `.out` file. The `.log` and `.debug` files contain times and must not be diffed. |
-| R8 | **Missing source** for `Fasta_Manager` / `Fasta_Record` (class files only). | `compiled/` | Blocks a from-source build, bioconda packaging and any refactor touching FASTA parsing. |
+| R8 | **Missing source** for `Fasta_Manager` / `Fasta_Record` (class files only). **Resolved 2026-10-05:** reconstructed into `src/`, bytecode-identical. | `compiled/` | Was blocking a from-source build, bioconda packaging and refactors touching FASTA parsing. |
 | R9 | Floating-point and library determinism across JDKs and platforms. | commons-math3 `BinomialTest` | JDK 17+ makes floating point strict by default, so pinning JDK 17 or later should make results portable. Verify in CI on Linux and macOS rather than assume. |
 
 ## Validation strategy

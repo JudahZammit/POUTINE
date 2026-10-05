@@ -30,7 +30,7 @@ There is no existing golden output, so the order is: **validate the current code
 Done so far (2026-10-05): POUTINE runs end to end with Java 21, Python 3.14 and treetime 0.12.1, on a synthetic fixture committed at [tests/data/toy/](../tests/data/toy/README.md). On that fixture a fresh build of `src/` matches the committed classes on the deterministic columns, and treetime 0.12.1 produces no curly-brace filenames. The fixture is a smoke test only, not the golden dataset.
 
 - [ ] Decide the source of truth: build `src/` at the milestone start and compare with the committed `compiled/` classes on the golden dataset, comparing the deterministic columns exactly. Record the outcome. (Toy fixture: match; confirm on the golden dataset.)
-- [ ] Recover or reimplement the source for `Fasta_Manager` / `Fasta_Record`: `javap -c -p` them, check how `Homoplasy_Counter` uses them, and check for an upstream source. Verify identical behavior against the golden deterministic columns.
+- [x] Recover or reimplement the source for `Fasta_Manager` / `Fasta_Record`: `javap -c -p` them, check how `Homoplasy_Counter` uses them, and check for an upstream source. Verify identical behavior against the golden deterministic columns. Done 2026-10-05: reconstructed from bytecode, identical disassembly, matching output on two datasets (see [third-party-and-licensing.md](third-party-and-licensing.md)).
 - [ ] Identify the source of `coevolution.jar` (`org.gersteinlab.coevolution`): upstream repo, license, and whether it is available from a public artifact repository.
 - [ ] Obtain a dataset with published POUTINE results (candidates: the *M. tuberculosis* discovery and reference sets from the preprint), plus the exact settings used. Record provenance and license in `tests/data/README.md`.
 - [ ] Write down the acceptance criteria for "comparable to published" before running.
@@ -119,7 +119,7 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 - **Published settings:** replicates, `--min_hcount`, POUTINE version and treetime version (preprint: 0.7.6) behind the published tables.
 - **Treetime version:** keep 0.8.6 (needs an older Python/numpy stack, to be verified) or move to a current release? 0.12.1 already ran cleanly on the toy fixture with no curly-brace filenames; what remains is confirming the results match 0.8.6 on the golden data. Moving changes the baseline, so it needs an explicit, documented decision.
 - **Is `compiled/` or `src/` the truth?** Settled in step 0.
-- **Sources for `Fasta_Manager` / `Fasta_Record` and `coevolution`:** ask the previous maintainer.
+- **Licence for `coevolution`, and authorship of `Fasta_Manager` / `Fasta_Record`:** ask the previous maintainer and the Gerstein lab. Source for both is now in `src/` (vendored and reconstructed respectively).
 - **Maven vs Gradle:** Maven recommended; confirm there is no preference.
 - **`.out` header:** may it record the seed, or must output files stay byte-identical with the seed only in the log?
 - **Minimum supported JDK:** 17, if strict floating-point portability is wanted.

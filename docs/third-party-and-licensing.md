@@ -16,7 +16,7 @@ When code carries no licence, copyright law normally leaves all rights with its 
 |---|---|---|---|
 | POUTINE itself | The program | GPL-3 | None |
 | **Coevolution classes** (`org.gersteinlab.coevolution`, 5 files vendored under [src/org/gersteinlab/coevolution/](../src/org/gersteinlab/coevolution/NOTICE.md)) | Newick tree parsing and the tree/node data model, central to homoplasy counting | **No licence or copyright notice found anywhere in the distribution.** | **Blocker.** See below. |
-| **`Fasta_Manager`, `Fasta_Record`** | FASTA reading | **Probably POUTINE's own code, so GPL-3, but unconfirmed.** Only `.class` files exist (in `compiled/`); the source was never committed. They first appear in the POUTINE author's first release (`73bd73a`, 2020-09-01), live in the default package like POUTINE, and their messages match POUTINE's style. No public source found. | Confirm authorship with the previous maintainer; then reconstruct the source from the bytecode and add it under GPL-3. |
+| **`Fasta_Manager`, `Fasta_Record`** | FASTA reading | **Probably POUTINE's own code, so GPL-3, but unconfirmed.** The source was never committed; the classes first appear in the POUTINE author's first release (`73bd73a`, 2020-09-01), live in the default package like POUTINE, and their messages match POUTINE's style. No public source found. | Source **reconstructed** into `src/` (see below). Confirm authorship with the previous maintainer. |
 | picocli 4.5.1 | CLI parsing | Apache-2.0 (to be confirmed from the artifact when the build is added) | Declare in the recipe |
 | commons-math3 3.6.1 | `BinomialTest` | Apache-2.0 (to be confirmed from the artifact when the build is added) | Declare in the recipe |
 | treetime | External program, run as a subprocess; **not redistributed** | Not bundled, so it does not affect POUTINE's redistribution. Confirm its licence before the recipe declares it as a run dependency. | Declare as a dependency, do not bundle |
@@ -67,10 +67,20 @@ Recommendation: pursue 1 now (a short email to the Gerstein lab and the previous
 
 Once it exists, record the licence text in `LICENSES/` (or alongside the files), reference it from the bioconda `license_file`, and update the table above.
 
+## Fasta_Manager and Fasta_Record
+
+The original source was never committed (only `.class` files, in the first release). The source in `src/Fasta_Manager.java` and `src/Fasta_Record.java` was **reconstructed from the bytecode** with `javap -c -p`. Verification:
+
+- Compiled with `javac --release 8 -g` (the original's class version is 52), the disassembly is instruction-for-instruction identical to the committed classes, including exception tables, after normalising constant-pool indices and whitespace. Original local variable names (`EOR`, `currLine`, ...) were recovered from the `LocalVariableTable`.
+- A full build from `src/` alone matches the committed build on the deterministic output columns, for the toy fixture and the 124-sample MTB reference set.
+
+The quirks are preserved deliberately (documented in the file headers). They have no effect on well-formed input, but changing them could change behavior on edge cases.
+
 ## Checklist before a bioconda submission
 
 - [ ] Licence for the coevolution classes resolved (option 1 or 2), recorded here.
-- [ ] Source and licence for `Fasta_Manager` / `Fasta_Record` resolved.
+- [x] Source for `Fasta_Manager` / `Fasta_Record` recovered (reconstructed).
+- [ ] Authorship of `Fasta_Manager` / `Fasta_Record` confirmed with the previous maintainer, so they can be marked GPL-3 with confidence.
 - [ ] No committed third-party binaries remain; dependencies come from Maven Central or conda.
 - [ ] Licences for picocli, commons-math3 and treetime confirmed from the actual artifacts.
 - [ ] `license` and `license_file` set in the recipe, covering POUTINE's GPL-3 and any bundled component.
