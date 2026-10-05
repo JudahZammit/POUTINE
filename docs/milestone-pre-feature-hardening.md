@@ -40,9 +40,9 @@ Done so far (2026-10-05): POUTINE runs end to end with Java 21, Python 3.14 and 
 
 Tracked in detail in the `PLAN.md` on `streamline-installation`.
 
-- [ ] Build system with pinned, updatable dependencies instead of committed jars.
+- [x] Build system with pinned, updatable dependencies instead of committed jars (`pom.xml`, shaded jar; verified 2026-10-05).
 - [ ] Update dependencies (picocli, JDK target, treetime decision; commons-math3 stays pinned) one at a time, comparing deterministic columns exactly against the pre-update reference, then revalidate against the published results.
-- [ ] Pinned JDK and a conda `environment.yml` (Python, treetime, OpenJDK, Maven), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
+- [x] (lock file still to do) Pinned JDK and a conda `environment.yml` (Python, treetime, OpenJDK, Maven), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
 - [ ] Resolved treetime version, with the reasons recorded.
 - [ ] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below).
 - [ ] Committed `compiled/` removed once the build reproduces it.

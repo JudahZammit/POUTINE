@@ -1,0 +1,20 @@
+# Development and runtime environment for POUTINE.
+#
+#   conda env create -f environment.yml     (or: micromamba create -f environment.yml)
+#   conda activate poutine
+#   mvn package                             # builds target/poutine-<version>.jar
+#
+# Everything that affects results is pinned here: the JDK and Maven that build the program, and treetime, which
+# produces the ancestral reconstruction POUTINE consumes.
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  # Build and runtime JDK. The pom.xml requires at least JDK 17 to build; 21 is the current LTS.
+  - openjdk=21
+  # Pinned here instead of using a committed Maven Wrapper (see PLAN.md).
+  - maven=3.9.16
+  # PROVISIONAL pin. The README says 0.8.6 and the preprint used 0.7.6; 0.12.1 is what the committed fixtures'
+  # ancestral reconstructions were made with. Final choice is pending the treetime comparison in PLAN.md.
+  - treetime=0.12.1
