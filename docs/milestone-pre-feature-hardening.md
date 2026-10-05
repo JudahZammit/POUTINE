@@ -45,7 +45,7 @@ Tracked in detail in the `PLAN.md` on `streamline-installation`.
 - [ ] Revalidate against the published results once the published dataset and results are found (this is still open).
 - [x] Pinned JDK, a conda `environment.yml` and a generated Linux-only `conda-lock.yml` (see [environment.md](environment.md)) (Python, treetime, OpenJDK, Maven), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
 - [ ] Resolved treetime version, with the reasons recorded.
-- [ ] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below).
+- [x] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below). Done 2026-10-05: see [launcher.md](launcher.md).
 - [ ] Committed `compiled/` removed once the build reproduces it.
 - [ ] README Installation section updated.
 
@@ -53,16 +53,16 @@ Tracked in detail in the `PLAN.md` on `streamline-installation`.
 
 Goal: after installation the user types `poutine <options>` from any directory, with no repo checkout, no relative classpath and no manual `PATH` edit. This replaces `poutine.sh`, which only works from the repo root, hard-codes the classpath, and passes `$@` unquoted (so paths containing spaces break).
 
-- [ ] **Runnable jar.** The build produces a single shaded jar with `Main-Class: Homoplasy_Counter` in its manifest, so the program runs as `java -jar poutine.jar`. This removes the four-jar classpath string.
-- [ ] **`poutine` launcher** (POSIX `sh`, installed into `bin/`):
+- [x] **Runnable jar.** The build produces a single shaded jar with `Main-Class: Homoplasy_Counter` in its manifest, so the program runs as `java -jar poutine.jar`. This removes the four-jar classpath string. Done.
+- [x] **`poutine` launcher** (POSIX `sh`, installed into `bin/`): Done (`bin/poutine`, tested by `tests/tools/test_launcher.sh`).
   - locates the jar relative to its own real path (resolving symlinks), so it works wherever it is installed or linked;
   - forwards arguments as `"$@"`;
   - honors `JAVA_HOME` and an optional `POUTINE_JAVA_OPTS` (for example `-Xmx`), so users can size the heap without editing the script;
   - checks up front that `java` (minimum version per the JDK decision) and `treetime` are on `PATH`, and prints an actionable message if not. Skip the `treetime` check when `-u` is given, since treetime is then not used.
-- [ ] **Version from the build.** `--version` already exists (picocli, `@Command(name = "poutine", ...)`) but the version string is hard-coded as `1.0.0`. Source it from the build (for example the jar manifest) so the launcher, `--version` and the package version cannot drift apart. A reproducibility record should carry this version.
-- [ ] **Delivery.** Conda installs `poutine` onto `PATH` automatically (step 7). Outside conda, a documented `make install` / install script (or a release tarball with `bin/poutine` and `share/poutine/poutine.jar`) does the same.
-- [ ] **`poutine.sh`:** keep for one release as a thin shim that calls `poutine` and prints a deprecation notice, then delete. Update the README and `CLAUDE.md` to use `poutine`.
-- [ ] **Smoke test.** CI runs `poutine --help` and `poutine --version` from a directory other than the repo root.
+- [x] **Version from the build.** `--version` already exists (picocli, `@Command(name = "poutine", ...)`) but the version string is hard-coded as `1.0.0`. Source it from the build (for example the jar manifest) so the launcher, `--version` and the package version cannot drift apart. A reproducibility record should carry this version. Done (`Poutine_Version`, filtered `poutine.properties`).
+- [ ] **Delivery.** Conda installs `poutine` onto `PATH` automatically (step 7). Outside conda, a documented `make install` / install script (or a release tarball with `bin/poutine` and `share/poutine/poutine.jar`) does the same. Partly done: the conda-environment route is verified (symlink into `$CONDA_PREFIX/bin`); the conda package itself is step 7.
+- [x] **`poutine.sh`:** keep for one release as a thin shim that calls `poutine` and prints a deprecation notice, then delete. Update the README and `CLAUDE.md` to use `poutine`. Done as a shim; README update is still to do. Delete the shim after one release.
+- [ ] **Smoke test.** CI runs `poutine --help` and `poutine --version` from a directory other than the repo root. The checks exist in `tests/tools/test_launcher.sh`; running them in CI is step 6.
 
 Rejected alternatives: a GraalVM native binary (treetime still has to be shelled out to, so users still need the Python environment, and the gain is small); a pip-installable Python wrapper (adds a second packaging system for a Java program); a bare `java -jar` instruction in the README (no dependency checks, no `PATH` entry).
 
@@ -88,7 +88,7 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 - [ ] Compile with `-Xlint:all` and triage the warnings.
 - [ ] Static analysis (SpotBugs and/or Error Prone), report-only first, then fail CI only on new findings.
 - [ ] Checkstyle configured to accept the deliberate `snake_case` names. Do not auto-format the large file until the golden test exists, then do it as one standalone mechanical commit.
-- [ ] Optional: shellcheck for `poutine.sh`, markdown lint for `docs/`.
+- [ ] Optional: shellcheck for `poutine.sh`, markdown lint for `docs/`. (shellcheck already run clean on `bin/poutine`, `poutine.sh` and `tests/tools/test_launcher.sh` when the launcher was written; wire it into CI.)
 
 ## Step 5: Refactoring (minimum needed to make the feature safe)
 

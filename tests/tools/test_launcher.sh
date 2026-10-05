@@ -1,0 +1,98 @@
+#!/bin/sh
+# Tests for bin/poutine. Run from anywhere, inside the conda environment, after "mvn package":
+#
+#   micromamba run -n poutine sh tests/tools/test_launcher.sh
+#
+# Needs java and treetime on PATH. Exits non-zero if any check fails.
+# This checks the launcher (lookup, quoting, dependency checks, option passing, exit codes) and that a fixture run
+# completes; it does NOT compare scientific output (that is the job of the golden-output test).
+
+# ok/bad always succeed, so "A && ok || bad" is a safe if-then-else here.
+# shellcheck disable=SC2015
+
+repo=$(cd "$(dirname "$0")/../.." && pwd)
+launcher=$repo/bin/poutine
+data=$repo/tests/data/toy
+pass=0
+fail=0
+
+ok() { pass=$((pass + 1)); printf '  PASS  %s\n' "$1"; }
+bad() { fail=$((fail + 1)); printf '  FAIL  %s\n' "$1"; }
+expect_exit() { # name expected actual
+    if [ "$2" = "$3" ]; then ok "$1 (exit $3)"; else bad "$1 (expected exit $2, got $3)"; fi
+}
+
+java_path=$(command -v java) || { echo "java must be on PATH to run these tests"; exit 2; }
+# The launcher prefers JAVA_HOME over PATH (conda sets it), which would defeat the PATH-based tests below.
+# Remember a valid one for the JAVA_HOME test, then clear it.
+java_home=$(dirname "$(dirname "$(readlink -f "$java_path")")")
+unset JAVA_HOME
+command -v treetime > /dev/null || { echo "treetime must be on PATH to run these tests"; exit 2; }
+ls "$repo"/target/poutine-*.jar > /dev/null 2>&1 || { echo "build the jar first: mvn package"; exit 2; }
+
+tmp=$(mktemp -d) || exit 2
+trap 'rm -rf "$tmp"' EXIT
+base_path=/usr/bin:/bin
+
+# stand-ins: a PATH with only java, a PATH with an old fake java, a PATH with no java at all
+mkdir "$tmp/javaonly" "$tmp/oldjava" "$tmp/nojava" "$tmp/bin"
+ln -s "$java_path" "$tmp/javaonly/java"
+printf '#!/bin/sh\necho "openjdk version \\"17.0.1\\" 2021-10-19" >&2\n' > "$tmp/oldjava/java"
+chmod +x "$tmp/oldjava/java"
+for c in dirname readlink sed head; do ln -s "$(command -v $c)" "$tmp/nojava/$c"; done
+ln -s "$launcher" "$tmp/bin/poutine"
+
+uargs="-f $data/ancestral/ancestral_sequences.fasta -t $data/ancestral/ancestral_tree.newick -p $data/phenos.txt -m $data/sites.map -r 500 -T 2"
+
+echo "launcher lookup"
+out=$(cd / && "$tmp/bin/poutine" --version)
+[ "$out" = "
+POUTINE 1.0.0" ] && ok "--version through a symlink, run from /" || bad "--version through a symlink: [$out]"
+(cd / && "$tmp/bin/poutine" --help | grep -q "Usage: poutine") && ok "--help" || bad "--help"
+POUTINE_JAR=/nonexistent.jar "$launcher" --version > "$tmp/o.txt" 2>&1; expect_exit "bad POUTINE_JAR refused" 1 $?
+grep -q "not a file" "$tmp/o.txt" && ok "  message explains" || bad "  message: $(cat "$tmp/o.txt")"
+mkdir "$tmp/nojar"; mkdir "$tmp/nojar/bin"; cp "$launcher" "$tmp/nojar/bin/poutine"
+"$tmp/nojar/bin/poutine" --version > "$tmp/o.txt" 2>&1; expect_exit "no jar found refused" 1 $?
+grep -q "mvn package" "$tmp/o.txt" && ok "  message says to run mvn package" || bad "  message: $(cat "$tmp/o.txt")"
+
+echo "running"
+# shellcheck disable=SC2086
+"$launcher" -u $uargs -d "$tmp/out" -o o.out -l o.log > "$tmp/o.txt" 2>&1; expect_exit "-u fixture run" 0 $?
+grep -q "CLEAN EXIT" "$tmp/o.txt" && ok "  ends with CLEAN EXIT" || bad "  no CLEAN EXIT"
+[ "$(wc -l < "$tmp/out/o.out")" -eq 299 ] && ok "  299 result lines (298 sites plus header)" || bad "  unexpected result line count"
+mkdir -p "$tmp/my data/with spaces"; cp "$data/phenos.txt" "$data/sites.map" "$data"/ancestral/* "$tmp/my data/with spaces/"
+s="$tmp/my data/with spaces"
+"$launcher" -u -f "$s/ancestral_sequences.fasta" -t "$s/ancestral_tree.newick" -p "$s/phenos.txt" -m "$s/sites.map" -r 500 -T 2 -d "$s/out dir" -o o.out -l o.log > /dev/null 2>&1
+expect_exit "every path contains spaces" 0 $?
+[ -f "$s/out dir/o.out" ] && ok "  output written under the spaced directory" || bad "  no output file"
+POUTINE_JAVA_OPTS="-XshowSettings:vm -Xmx512m" "$launcher" --version 2>&1 | grep -q "Max. Heap Size: 512" && ok "POUTINE_JAVA_OPTS reaches the JVM" || bad "POUTINE_JAVA_OPTS"
+JAVA_HOME=/does/not/exist "$launcher" --version > /dev/null 2>&1; expect_exit "invalid JAVA_HOME falls back to java on PATH" 0 $?
+JAVA_HOME=$java_home PATH="$tmp/nojava" "$launcher" --version > /dev/null 2>&1; expect_exit "valid JAVA_HOME used when java is not on PATH" 0 $?
+
+echo "dependency checks"
+PATH="$tmp/javaonly:$base_path" "$launcher" -f x -t y -p z -m w > "$tmp/o.txt" 2>&1; expect_exit "no treetime and no -u refused" 1 $?
+grep -q "treetime not found" "$tmp/o.txt" && ok "  message names treetime" || bad "  message: $(cat "$tmp/o.txt")"
+# shellcheck disable=SC2086
+PATH="$tmp/javaonly:$base_path" "$launcher" -u $uargs -d "$tmp/o2" -o o.out -l o.log > /dev/null 2>&1; expect_exit "no treetime but -u runs" 0 $?
+# shellcheck disable=SC2086
+PATH="$tmp/javaonly:$base_path" "$launcher" -Du $uargs -d "$tmp/o3" -o o.out -l o.log > /dev/null 2>&1; expect_exit "clustered -Du runs without treetime" 0 $?
+PATH="$tmp/javaonly:$base_path" "$launcher" --help > /dev/null 2>&1; expect_exit "--help without treetime" 0 $?
+PATH="$tmp/javaonly:$base_path" "$launcher" -V > /dev/null 2>&1; expect_exit "-V without treetime" 0 $?
+PATH="$tmp/oldjava:$base_path" "$launcher" --version > "$tmp/o.txt" 2>&1; expect_exit "Java 17 refused" 1 $?
+grep -q "Java 21 or newer is required, but .* is Java 17" "$tmp/o.txt" && ok "  message names both versions" || bad "  message: $(cat "$tmp/o.txt")"
+PATH="$tmp/nojava" "$launcher" --version > "$tmp/o.txt" 2>&1; expect_exit "no java refused" 1 $?
+grep -q "java not found" "$tmp/o.txt" && ok "  message says java not found" || bad "  message: $(cat "$tmp/o.txt")"
+
+echo "exit codes pass through"
+"$launcher" -f "$data/sites.fa" -t "$data/tree.nwk" -p "$data/phenos.txt" -m "$data/sites.map" -r 0 -d "$tmp/o4" > /dev/null 2>&1; expect_exit "invalid -r" 2 $?
+"$launcher" --bogus > /dev/null 2>&1; expect_exit "unknown option" 2 $?
+
+echo "other shells"
+for shell in dash "bash --posix"; do
+    # shellcheck disable=SC2086
+    $shell "$launcher" --version > /dev/null 2>&1; expect_exit "runs under $shell" 0 $?
+done
+
+echo
+echo "$pass passed, $fail failed"
+[ "$fail" -eq 0 ]

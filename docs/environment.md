@@ -20,6 +20,7 @@ From the lock file (reproducible, what CI and everyone should use):
 micromamba create -n poutine -f conda-lock.yml      # or: conda-lock install -n poutine conda-lock.yml
 micromamba activate poutine                         # or: conda activate poutine
 mvn package                                         # builds target/poutine-1.0.0.jar
+bin/poutine --help                                  # run it (see launcher.md)
 ```
 
 From `environment.yml` (re-solves, so versions can drift from the lock; only for trying changes):
