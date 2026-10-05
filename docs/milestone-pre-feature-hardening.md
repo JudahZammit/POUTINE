@@ -122,4 +122,4 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 - **Licence for `coevolution`, and authorship of `Fasta_Manager` / `Fasta_Record`:** ask the previous maintainer and the Gerstein lab. Source for both is now in `src/` (vendored and reconstructed respectively).
 - **Maven vs Gradle:** Maven recommended; confirm there is no preference.
 - **`.out` header:** may it record the seed, or must output files stay byte-identical with the seed only in the log?
-- **Minimum supported JDK:** 17, if strict floating-point portability is wanted.
+- **Minimum supported JDK:** decided 2026-10-05: Java 21 only (one number; conda is the install baseline).

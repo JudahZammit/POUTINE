@@ -18,7 +18,7 @@ channels:
 platforms:
   - linux-64
 dependencies:
-  # Build and runtime JDK. The pom.xml requires at least JDK 17 to build; 21 is the current LTS.
+  # Build and runtime JDK. The pom.xml requires JDK 21 to build and targets Java 21 bytecode: one version everywhere.
   - openjdk=21
   # Pinned here instead of using a committed Maven Wrapper (see PLAN.md).
   - maven=3.9.16

@@ -8,7 +8,7 @@ How the POUTINE build and run environment is defined, pinned and updated. Suppor
 |---|---|
 | [environment.yml](../environment.yml) | What we ask for: JDK 21, Maven 3.9.16 and treetime 0.12.1 (provisional), from conda-forge and bioconda. Edit this to change a requirement. |
 | [conda-lock.yml](../conda-lock.yml) | What we get: every package in the environment (104 for linux-64) with exact version, build and checksum. **Generated; do not edit by hand.** |
-| [pom.xml](../pom.xml) | The Java build. Its `maven-enforcer-plugin` rules reject a Maven older than 3.9 or a JDK older than 17. |
+| [pom.xml](../pom.xml) | The Java build. Its `maven-enforcer-plugin` rules reject a Maven older than 3.9 or a JDK older than 21. One Java version everywhere: the conda JDK builds and runs the jar, and the bytecode targets Java 21. |
 
 Only three packages are pinned in `environment.yml`; everything else (Python, numpy, pandas, scipy, biopython and so on, all pulled in by treetime) is fixed by the lock file. Treetime drives the ancestral reconstruction POUTINE consumes, so its scientific stack counts as part of the result's provenance.
 
@@ -59,5 +59,6 @@ Installed from the lock alone into a clean environment, `mvn package` built the 
 ## Gotchas
 
 - **Memory and `/tmp`.** Solving and installing needs a lot of temporary space and RAM. On the WSL machine used here, `/tmp` is a 1.9 GB RAM-backed tmpfs on a 3.8 GB machine, and conda runs were killed (exit 137) or failed with an opaque solver error. Point `TMPDIR` and `MAMBA_ROOT_PREFIX` at a disk-backed directory (for example under `~/.cache`) before running micromamba or conda-lock.
+- **Check the class versions after changing `maven.compiler.release`.** Once, right after raising the target, the shaded jar held old version-58 classes while `target/classes` held the new version. Two clean rebuilds afterwards were both correct, and the cause is unconfirmed (an IDE background compile with the old setting is the suspect). Verify rather than assume: after a clean `mvn package`, every project class in the jar should have the new major version (Java 21 is class version 65), for example with `javap -v -cp target/classes Homoplasy_Counter | grep major`, or by reading bytes 6-7 of each `.class` in the jar.
 - **Treetime pin is provisional.** The README says 0.8.6 and the preprint used 0.7.6; 0.12.1 is in the lock. Changing it means changing `environment.yml` and re-locking; the decision is tracked in the treetime comparison in `PLAN.md`.
 - **Without a platform restriction the stack diverges.** When we also locked for macOS, conda-forge and bioconda resolved an older stack there (Python 3.10 to 3.12, numpy 1.26.4, pandas 2.2.2) than on Linux (Python 3.14, numpy 2.5.3, pandas 3.0.6). That is why the lock is deliberately Linux-only: one lock, one stack.
