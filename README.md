@@ -52,43 +52,37 @@ There is a known issue with the latest version of Treetime (0.9.0 and above) whe
 
 POUTINE runs on **Linux**.  Windows is not supported because treetime does not run there, and macOS is not currently a supported platform.
 
-The recommended route is conda (or micromamba), which provides the exact Java, Maven and treetime versions POUTINE is tested with in one pinned environment:
+The recommended route is conda, which provides the Java, Maven and treetime versions POUTINE is tested with.  From a clone of this repository:
 
 ```
 git clone https://github.com/Peter-Two-Point-O/POUTINE.git
 cd POUTINE
-micromamba create -n poutine -f conda-lock.yml     # or, with conda: conda-lock install -n poutine conda-lock.yml
-micromamba activate poutine                        # or: conda activate poutine
-mvn package                                        # builds target/poutine-1.0.0.jar
-bin/poutine --help
+conda create -n poutine -c conda-forge -c bioconda openjdk=21 maven=3.9.16 treetime=0.12.1
+conda activate poutine
+PREFIX=$CONDA_PREFIX bash build.sh                 # builds the jar with Maven (needs network access) and installs it into the environment
+poutine --help
 ```
 
-To get a plain `poutine` command, link the launcher into the environment (the link can be recreated at any time and survives rebuilding the jar):
-
-```
-ln -s "$PWD/bin/poutine" "$CONDA_PREFIX/bin/poutine"
-```
-
-The environment contains:
+`build.sh` puts the `poutine` command and its jar inside the environment, so the clone is not needed after it finishes.  The environment contains:
 
 *   Java 21 (a JVM of at least this version is required; newer JVMs bring substantial speed and memory improvements over old ones such as Java 8)
 *   Maven (only needed to build POUTINE)
 *   treetime 0.12.1 and its Python dependencies (only needed when POUTINE has to run the ancestral reconstruction; not needed with `-u`)
 
-[conda-lock.yml](conda-lock.yml) fixes every package version and checksum, so everyone gets the same environment.  See [docs/environment.md](docs/environment.md) for how it is built and updated.  A bioconda package is planned.
+Building POUTINE as a conda package with `conda build`, running it straight from a checkout while you work on the code, and troubleshooting are covered in [docs/installation.md](docs/installation.md).  A bioconda package is planned.
 
 Without conda you need JDK 21 or newer, Maven 3.9 or newer, and `treetime` on your `PATH`; this route is not tested.
 
 ## Executing The Program
 
-Execute: `bin/poutine --help` to see all command-line options.
+Execute: `poutine --help` to see all command-line options.
 
-`bin/poutine` works from any directory.  It stops with a clear message if Java 21 or newer is not available.  If you linked it into your environment as shown above, simply run `poutine --help`.  More about the launcher (including `POUTINE_JAVA_OPTS` for JVM options such as `-Xmx16g`) is in [docs/launcher.md](docs/launcher.md).
+`poutine` works from any directory.  It stops with a clear message if Java 21 or newer is not available.  More about the launcher (including `POUTINE_JAVA_OPTS` for JVM options such as `-Xmx16g`) is in [docs/launcher.md](docs/launcher.md).
 
 Small example datasets to try are in [tests/data](tests/data); for example, from the repository root:
 
 ```
-bin/poutine -f tests/data/mtb-reference/mtb_maf_05.fasta -t tests/data/mtb-reference/mtb_maf05.newick \
+poutine -f tests/data/mtb-reference/mtb_maf_05.fasta -t tests/data/mtb-reference/mtb_maf05.newick \
     -p tests/data/mtb-reference/mtb.phenos -m tests/data/mtb-reference/mtb_maf_05.map -r 10000 -d results
 ```
 
