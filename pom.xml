@@ -22,10 +22,6 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- One Java version for everything: the conda environment's JDK builds and runs the jar, and the bytecode
-             targets the same release (21, the current LTS; floating point has been strict since 17, JEP 306). Raised
-             from 14, which the original committed classes used, and verified against the fixtures (see PLAN.md).
-             The build fails on an older JDK (enforced below). -->
         <maven.compiler.release>21</maven.compiler.release>
         <minimum.jdk>21</minimum.jdk>
         <minimum.maven>3.9.0</minimum.maven>
@@ -74,11 +70,11 @@
                             <rules>
                                 <requireMavenVersion>
                                     <version>[${minimum.maven},)</version>
-                                    <message>Maven ${minimum.maven} or newer is required. Use the conda environment (environment.yml).</message>
+                                    <message>Maven ${minimum.maven} or newer is required.</message>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
                                     <version>[${minimum.jdk},)</version>
-                                    <message>JDK ${minimum.jdk} or newer is required to build. Use the conda environment (environment.yml).</message>
+                                    <message>JDK ${minimum.jdk} or newer is required to build.</message>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>

@@ -1,0 +1,29 @@
+# Local conda recipe. Build and install from the repository root:
+#   conda build . -c conda-forge -c bioconda
+#   conda install --use-local poutine -c conda-forge -c bioconda
+{% set version = "1.0.0" %}  # keep in step with <version> in pom.xml
+
+package:
+  name: poutine
+  version: {{ version }}
+
+source:
+  path: .
+
+build:
+  number: 0
+  noarch: generic  # a jar plus a shell launcher, nothing compiled per platform
+
+requirements:
+  build:
+    - openjdk 21.*
+    - maven >=3.9
+  run:
+    - openjdk >=21
+    - treetime 0.12.1
+
+about:
+  home: https://github.com/Peter-Two-Point-O/POUTINE
+  license: GPL-3.0-or-later
+  license_file: LICENSE
+  summary: A homoplasy-counting GWAS tool for microbial genomes
