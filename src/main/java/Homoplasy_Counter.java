@@ -46,7 +46,7 @@ import static java.nio.file.StandardOpenOption.APPEND;
 
 /**
  * @author Peter E Chen
- * @version 1.0.0
+ * @version 1.0.1
  */
 @Command(name = "poutine", versionProvider = Poutine_Version.class, mixinStandardHelpOptions = true, usageHelpWidth = 210, sortOptions = false, headerHeading = "%n", optionListHeading = "%n", footerHeading = "%n")
 public class Homoplasy_Counter implements Callable<Integer> {

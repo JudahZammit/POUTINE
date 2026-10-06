@@ -22,7 +22,7 @@ cd POUTINE
 conda create -n poutine -c conda-forge -c bioconda openjdk=21 maven=3.9.16 treetime=0.12.1
 conda activate poutine
 PREFIX=$CONDA_PREFIX bash build.sh
-poutine --version        # POUTINE 1.0.0
+poutine --version        # POUTINE 1.0.1
 ```
 
 What it does:
@@ -68,4 +68,4 @@ bin/poutine --help
 ln -s "$PWD/bin/poutine" "$CONDA_PREFIX/bin/poutine"      # optional: a plain "poutine" command
 ```
 
-The symlink survives rebuilding the jar, so after a code change you only rerun `mvn package`. Do not combine the symlink with the light route in the same environment: see the troubleshooting table. How the launcher works: [launcher.md](launcher.md).
+The symlink survives rebuilding the jar, so after a code change you only rerun `mvn package`. Do not combine the symlink with the light route in the same environment: `build.sh` copies the launcher onto `$PREFIX/bin/poutine`, which fails with "are the same file" when that path is a symlink to the checkout's `bin/poutine`. Remove the symlink first.

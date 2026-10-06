@@ -32,7 +32,7 @@ The file keeps many earlier iterations, selected by constants and commented-out 
 ## Documentation
 
 - Anything useful to a human working on this repo (design rationale, algorithm notes, gotchas, how-tos, file formats) goes in `docs/`, written as clean, well-organized Markdown with clear headings. Split topics into separate files and don't dump everything into one. Keep `CLAUDE.md` for concise guidance aimed at Claude, and link to `docs/` instead of duplicating it.
-- Active milestone: [docs/milestone-pre-feature-hardening.md](docs/milestone-pre-feature-hardening.md) (reproducibility, golden test, seeds, lint, refactor, CI, conda, all before the burden-test feature). Output must not change; see [docs/reproducibility.md](docs/reproducibility.md) for the known risks (unseeded RNG, racy `r_a1++`/`r_a2++`).
+- Active milestone: [docs/milestone-pre-feature-hardening.md](docs/milestone-pre-feature-hardening.md) (reproducibility, golden test, seeds, lint, refactor, CI, conda, all before the burden-test feature). Output must not change; known risks are the unseeded RNG and the racy `r_a1++`/`r_a2++`.
 - Feature branches may carry a temporary `PLAN.md`. Before deleting it at merge, harvest any design patterns, gotchas or lasting decisions from it into `docs/` (or `CLAUDE.md` if they're short and apply to every session), then delete it. Full process: [docs/feature-branch-workflow.md](docs/feature-branch-workflow.md).
 
 ## Shutdown protocol
@@ -53,4 +53,4 @@ Claude can't detect that a session is ending, so run this when the user runs `/s
 - snake_case method and variable names, and class names like `Homoplasy_Events`, with inner classes for data holders. This is not standard Java style, so match it.
 - CLI options are picocli `@Option` fields grouped into `@ArgGroup` static classes (`InputFiles`, `AlgoParams`, `RuntimeSettings`, `OutputOptions`). Numeric options are validated in setter methods that throw `ParameterException`.
 - Console output uses picocli `Ansi.AUTO.string("@|fg(N) ... |@")` markup, and anything notable is mirrored to the session log via `outputOptions.log`.
-- The `--help` layout has known, deliberately unfixed display problems (fixed 210-column width, headings with a background colour only); see [docs/help-output.md](docs/help-output.md). picocli drops colour when output is not a terminal, so captured output never shows the colour problems.
+- The `--help` layout has known, deliberately unfixed display problems (fixed 210-column width, headings with a background colour only); picocli drops colour when output is not a terminal, so captured output never shows the colour problems.

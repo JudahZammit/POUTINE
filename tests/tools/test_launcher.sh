@@ -28,13 +28,14 @@ ln -s "$launcher" "$tmp/bin/poutine"
 fixture="-f $data/ancestral/ancestral_sequences.fasta -t $data/ancestral/ancestral_tree.newick -p $data/phenos.txt -m $data/sites.map -r 500 -T 2"
 
 echo "launcher lookup"
+version=$(sed -n 's|^    <version>\(.*\)</version>$|\1|p' "$repo/pom.xml" | head -n 1)   # the project version, as built into the jar
 out=$(cd / && "$tmp/bin/poutine" --version)
 [ "$out" = "
-POUTINE 1.0.0" ] && ok "--version through a symlink, run from /" || bad "--version through a symlink: [$out]"
+POUTINE $version" ] && ok "--version through a symlink, run from /" || bad "--version through a symlink: [$out]"
 (cd / && "$tmp/bin/poutine" --help | grep -q "Usage: poutine") && ok "--help" || bad "--help"
 # installed layout, as in a conda package: bin/poutine next to share/poutine-<version>/poutine.jar
-mkdir -p "$tmp/inst/bin" "$tmp/inst/share/poutine-1.0.0-0"
-cp "$launcher" "$tmp/inst/bin/poutine"; cp "$repo"/target/poutine-*.jar "$tmp/inst/share/poutine-1.0.0-0/poutine.jar"
+mkdir -p "$tmp/inst/bin" "$tmp/inst/share/poutine-$version-0"
+cp "$launcher" "$tmp/inst/bin/poutine"; cp "$repo"/target/poutine-*.jar "$tmp/inst/share/poutine-$version-0/poutine.jar"
 "$tmp/inst/bin/poutine" --version > /dev/null 2>&1; expect_exit "installed layout (share/poutine*/poutine.jar)" 0 $?
 mkdir "$tmp/nojar" "$tmp/nojar/bin"; cp "$launcher" "$tmp/nojar/bin/poutine"
 "$tmp/nojar/bin/poutine" --version > "$tmp/o.txt" 2>&1; expect_exit "no jar found refused" 1 $?

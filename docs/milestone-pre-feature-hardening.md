@@ -2,7 +2,7 @@
 
 Everything that must be in place before the burden test and non-LoF mutation groups are built. The overriding concern is **scientific reproducibility**: no change made here, or in the feature work that follows, may silently change the results POUTINE produces today.
 
-The reasoning behind the test and seeding approach is in [reproducibility.md](reproducibility.md). Per-branch detail lives in that branch's temporary `PLAN.md` (see [feature-branch-workflow.md](feature-branch-workflow.md)).
+Per-branch detail lives in that branch's temporary `PLAN.md` (see [feature-branch-workflow.md](feature-branch-workflow.md)).
 
 ## Scope
 
@@ -12,7 +12,7 @@ Out of scope: the burden test itself, new mutation groups, any change to the sta
 
 ## Order of work
 
-There is no existing golden output, so the order is: **validate the current code against published results, update dependencies, revalidate, then pin the validated behavior as the golden output**. Refactoring comes last. Steps 1 and 2 both depend on step 0. The detail is in the `PLAN.md` on `streamline-installation` and the reasoning in [reproducibility.md](reproducibility.md#validation-strategy).
+There is no existing golden output, so the order is: **validate the current code against published results, update dependencies, revalidate, then pin the validated behavior as the golden output**. Refactoring comes last. Steps 1 and 2 both depend on step 0. The detail is in the `PLAN.md` on `streamline-installation`.
 
 | Step | Workstream | Branch / status |
 |---|---|---|
@@ -41,12 +41,12 @@ Done so far (2026-10-05): POUTINE runs end to end with Java 21, Python 3.14 and 
 Tracked in detail in the `PLAN.md` on `streamline-installation`.
 
 - [x] Build system with pinned, updatable dependencies instead of committed jars (`pom.xml`, shaded jar; verified 2026-10-05).
-- [x] Update dependencies: JDK target raised to 21 everywhere; commons-math3 and picocli stay pinned by decision (2026-10-05); treetime is pinned at the latest release, 0.12.1, after a comparison with 0.7.6 and 0.8.6 (see [treetime-version-comparison.md](treetime-version-comparison.md)). Updates were applied one at a time, comparing deterministic columns exactly against the legacy build on both fixtures.
+- [x] Update dependencies: JDK target raised to 21 everywhere; commons-math3 and picocli stay pinned by decision (2026-10-05); treetime is pinned at the latest release, 0.12.1, after a comparison with 0.7.6 and 0.8.6. Updates were applied one at a time, comparing deterministic columns exactly against the legacy build on both fixtures.
 - [ ] Revalidate against the published results once the published dataset and results are found (this is still open).
-- [x] Pinned JDK, a conda `environment.yml` and a generated Linux-only `conda-lock.yml` (see [environment.md](environment.md)) (Python, treetime, OpenJDK, Maven), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
+- [x] Pinned JDK 21, Maven 3.9 and treetime 0.12.1 in the conda environment created in the README (no `environment.yml` or lock file, dropped in favour of the local conda recipe, [meta.yaml](../meta.yaml)), with `maven-enforcer-plugin` rules in the `pom.xml`. No Maven Wrapper: the conda environment is the single pinned environment for developers and CI.
 - [ ] Resolved treetime version, with the reasons recorded.
-- [x] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below). Done 2026-10-05: see [launcher.md](launcher.md).
-- [x] Committed `compiled/` removed (2026-10-05), after the build was shown to reproduce it; recoverable from history (see [launcher.md](launcher.md)).
+- [x] An installed `poutine` command replaces `poutine.sh` (see [Entrypoint](#entrypoint) below). Done 2026-10-05.
+- [x] Committed `compiled/` removed (2026-10-05), after the build was shown to reproduce it; recoverable from history (last commit with it: `d0d4a6c`).
 - [x] README Installation section updated (2026-10-05), with the instructions verified from a fresh clone.
 
 ### Entrypoint
@@ -54,7 +54,7 @@ Tracked in detail in the `PLAN.md` on `streamline-installation`.
 Goal: after installation the user types `poutine <options>` from any directory, with no repo checkout, no relative classpath and no manual `PATH` edit. This replaces `poutine.sh`, which only works from the repo root, hard-codes the classpath, and passes `$@` unquoted (so paths containing spaces break).
 
 - [x] **Runnable jar.** The build produces a single shaded jar with `Main-Class: Homoplasy_Counter` in its manifest, so the program runs as `java -jar poutine.jar`. This removes the four-jar classpath string. Done.
-- [x] **`poutine` launcher** (POSIX `sh`, installed into `bin/`): Done, then slimmed to 12 lines of code (`bin/poutine`, tested by `tests/tools/test_launcher.sh`; see [launcher.md](launcher.md) for what was left out and why). It does not check for treetime (a stated requirement; failing without it is fine).
+- [x] **`poutine` launcher** (POSIX `sh`, installed into `bin/`): Done, then slimmed to 12 lines of code (`bin/poutine`, tested by `tests/tools/test_launcher.sh`). It does not check for treetime (a stated requirement; failing without it is fine).
   - locates the jar relative to its own real path (resolving symlinks), so it works wherever it is installed or linked;
   - forwards arguments as `"$@"`;
   - honors an optional `POUTINE_JAVA_OPTS` (for example `-Xmx`), so users can size the heap without editing the script (a `JAVA_HOME` override was dropped as redundant with the conda environment);
@@ -102,14 +102,14 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 ## Step 6: CI pipeline (GitHub Actions)
 
 - [ ] Jobs: build, lint, unit tests, golden test (`-T 1` and `-T 4`), treetime smoke test.
-- [ ] Create the environment from `environment.yml`, with caching, so CI runs what users get.
+- [ ] Create the conda environment as in the README, with caching, so CI runs what users get.
 - [ ] Matrix: Linux only (decision 2026-10-05). Windows is unsupported because treetime does not run there, and macOS is not a target.
 - [ ] Keep it fast: small dataset, moderate replicate count.
 - [ ] A job that builds the conda package (step 7).
 
 ## Step 7: Conda packaging
 
-- [ ] Minimum: `micromamba create -n poutine -f conda-lock.yml` plus a documented local install that puts `poutine` on `PATH`.
+- [x] Minimum: a local conda recipe ([meta.yaml](../meta.yaml), [build.sh](../build.sh)) that puts `poutine` on `PATH`; see [installation.md](installation.md). Version `1.0.1`. Building it with `conda build` has not been tested on this machine (memory).
 - [ ] Target: a bioconda recipe that builds from source, installs jars to `share/poutine`, ships the `poutine` launcher from step 1 in `bin/`, depends on `openjdk` and a pinned `phylo-treetime`, and runs the golden test in the recipe's `test:` section.
 - [ ] Prerequisites from step 0: buildable from source, known dependency licenses and sources, and a tagged release to build from. **Licensing is a hard gate:** bioconda requires that licences allow redistribution, and the vendored coevolution classes and `Fasta_*` have no known licence. Track it in [third-party-and-licensing.md](third-party-and-licensing.md).
 - [ ] Decide on a Dockerfile (the README says one "will likely feature soon"); lower priority than conda.
@@ -118,7 +118,7 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 
 - **Published dataset:** which one, and where do its processed inputs come from? The preprint's discovery set (1,330 genomes, PRJNA413593) has public raw reads but apparently no public processed inputs; the 123-genome reference set may be more practical. Can the data, or a subsample, be committed (size, license, privacy)? The golden test may need a smaller derived subset for CI speed.
 - **Published settings:** replicates, `--min_hcount`, POUTINE version and treetime version (preprint: 0.7.6) behind the published tables.
-- **Treetime version:** decided 2026-10-05: the latest, 0.12.1. Ancestral sequences were identical to 0.7.6 (the preprint's) and 0.8.6 (the README's) on both fixtures, and POUTINE's output unchanged ([treetime-version-comparison.md](treetime-version-comparison.md)). Still to be repeated on the published dataset.
+- **Treetime version:** decided 2026-10-05: the latest, 0.12.1. Ancestral sequences were identical to 0.7.6 (the preprint's) and 0.8.6 (the README's) on both fixtures, and POUTINE's output unchanged. Still to be repeated on the published dataset.
 - **Is `compiled/` or `src/` the truth?** Settled in step 0.
 - **Licence for `coevolution`, and authorship of `Fasta_Manager` / `Fasta_Record`:** ask the previous maintainer and the Gerstein lab. Source for both is now in `src/` (vendored and reconstructed respectively).
 - **Maven vs Gradle:** Maven recommended; confirm there is no preference.

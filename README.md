@@ -24,12 +24,15 @@ Stay tuned as POUTINE will continue to evolve to include [new major features](ht
 
 ## Updates
 
+### 2026 October 6
+Version 1.0.1. The package can now be built locally as a conda package from the repository (`meta.yaml` and `build.sh`; see [docs/installation.md](docs/installation.md)).  There are no changes to the program's results.
+
 ### 2026 October 5
 Installation has been reworked so that everything POUTINE needs comes from one pinned conda environment (see [Installation](#installation)).  The main changes:
 *   POUTINE is now built with Maven and run with the new `bin/poutine` launcher, which replaces `poutine.sh` (still present, but only as a deprecated shim that forwards to the launcher).
 *   Java 21 is now required.  The conda environment provides it.
 *   POUTINE is supported on **Linux only**.
-*   The treetime guidance in the 2022 entries below (use 0.8.6, curly braces) is superseded: the environment pins treetime 0.12.1, the latest release, and the curly-brace problem did not occur with it.  On our two test datasets treetime 0.7.6, 0.8.6 and 0.12.1 give identical ancestral sequences and identical POUTINE results (details in [docs/treetime-version-comparison.md](docs/treetime-version-comparison.md)).
+*   The treetime guidance in the 2022 entries below (use 0.8.6, curly braces) is superseded: the environment pins treetime 0.12.1, the latest release, and the curly-brace problem did not occur with it.  On our two test datasets treetime 0.7.6, 0.8.6 and 0.12.1 give identical ancestral sequences and identical POUTINE results.
 
 ### 2022 November 30
 Updated the README to include our recommendation to use homoplasy counting for intermediate and highly recombining pops (and not just clonal pops).  We got this question a lot, so we hope this guidance helps.    
@@ -69,7 +72,7 @@ poutine --help
 *   Maven (only needed to build POUTINE)
 *   treetime 0.12.1 and its Python dependencies (only needed when POUTINE has to run the ancestral reconstruction; not needed with `-u`)
 
-Building POUTINE as a conda package with `conda build`, running it straight from a checkout while you work on the code, and troubleshooting are covered in [docs/installation.md](docs/installation.md).  A bioconda package is planned.
+Building POUTINE as a conda package with `conda build`, and running it straight from a checkout while you work on the code, are covered in [docs/installation.md](docs/installation.md).  A bioconda package is planned.
 
 Without conda you need JDK 21 or newer, Maven 3.9 or newer, and `treetime` on your `PATH`; this route is not tested.
 
@@ -77,7 +80,7 @@ Without conda you need JDK 21 or newer, Maven 3.9 or newer, and `treetime` on yo
 
 Execute: `poutine --help` to see all command-line options.
 
-`poutine` works from any directory.  It stops with a clear message if Java 21 or newer is not available.  More about the launcher (including `POUTINE_JAVA_OPTS` for JVM options such as `-Xmx16g`) is in [docs/launcher.md](docs/launcher.md).
+`poutine` works from any directory.  It stops with a clear message if Java 21 or newer is not available.  JVM options such as `-Xmx16g` can be passed through the `POUTINE_JAVA_OPTS` environment variable.
 
 Small example datasets to try are in [tests/data](tests/data); for example, from the repository root:
 
