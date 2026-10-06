@@ -1,15 +1,3 @@
-#!/bin/sh
-# Tests for bin/poutine. Run from anywhere, inside the conda environment, after "mvn package":
-#
-#   micromamba run -n poutine sh tests/tools/test_launcher.sh
-#
-# Needs java on PATH. Exits non-zero if any check fails.
-# This checks the launcher (jar lookup, quoting, Java check, option passing, exit codes) and that a fixture run
-# completes; it does NOT compare scientific output (that is the job of the golden-output test).
-
-# ok/bad always succeed, so "A && ok || bad" is a safe if-then-else here.
-# shellcheck disable=SC2015
-
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 launcher=$repo/bin/poutine
 data=$repo/tests/data/toy
