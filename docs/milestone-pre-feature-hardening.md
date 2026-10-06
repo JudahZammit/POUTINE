@@ -101,11 +101,12 @@ Rejected alternatives: a GraalVM native binary (treetime still has to be shelled
 
 ## Step 6: CI pipeline (GitHub Actions)
 
-- [ ] Jobs: build, lint, unit tests, golden test (`-T 1` and `-T 4`), treetime smoke test.
-- [ ] Create the conda environment as in the README, with caching, so CI runs what users get.
+- [x] Package job (done): builds the conda package, installs it and runs POUTINE (with treetime) on the toy dataset (see [installation.md](installation.md#ci)).
+- [ ] Still to add: the launcher tests (`tests/tools/test_launcher.sh`) and shellcheck, lint (step 4), unit tests (step 5), golden test (`-T 1` and `-T 4`, step 2).
+- [ ] Create the conda environment as in the README, with caching, so CI runs what users get. (The package job installs from the built package instead, with no caching.)
 - [ ] Matrix: Linux only (decision 2026-10-05). Windows is unsupported because treetime does not run there, and macOS is not a target.
 - [ ] Keep it fast: small dataset, moderate replicate count.
-- [ ] A job that builds the conda package (step 7).
+- [x] A job that builds the conda package (step 7).
 
 ## Step 7: Conda packaging
 

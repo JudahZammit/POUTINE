@@ -2,6 +2,8 @@
 
 # POUTINE
 
+[![CI](https://github.com/Peter-Two-Point-O/POUTINE/actions/workflows/ci.yml/badge.svg)](https://github.com/Peter-Two-Point-O/POUTINE/actions/workflows/ci.yml)  The CI builds the conda package, installs it on a clean Linux machine and runs POUTINE on a small dataset.
+
 POUTINE is a homoplasy counting-based method for genome-wide association studies (GWAS) for microbial genomes.  It is particularly well suited to identify causal variants in strongly clonal populations which exhibit strong and long-range linkage disequilibrium (LD).  In addition to clonal pops, we recommend using homoplasy counting also for populations higher up the recombination scale (including even highly recombining pops) for three major reasons:
 1) Candidate causal variants identified by POUTINE are likely sculpted by convergent evolution and provide orthogonal evidence in conjunction with traditional allele counting methods that the site is causal.   
 2) Based upon dense recombination maps, it is likely that many microbial populations will harbor regions of the genome that show insufficient recombination for traditional allele counting methods to resolve the causal signal from linked sites.  The number and size of these strongly clonal regions may be substantial and would benefit from homoplasy counting.

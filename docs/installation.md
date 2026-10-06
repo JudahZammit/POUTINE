@@ -69,3 +69,7 @@ ln -s "$PWD/bin/poutine" "$CONDA_PREFIX/bin/poutine"      # optional: a plain "p
 ```
 
 The symlink survives rebuilding the jar, so after a code change you only rerun `mvn package`. Do not combine the symlink with the light route in the same environment: `build.sh` copies the launcher onto `$PREFIX/bin/poutine`, which fails with "are the same file" when that path is a symlink to the checkout's `bin/poutine`. Remove the symlink first.
+
+## CI
+
+[.github/workflows/ci.yml](../.github/workflows/ci.yml) runs the full route above on a clean Linux runner: `conda build`, installing the package into a new environment, then `poutine` on the toy dataset in [tests/data/toy](../tests/data/toy/README.md), including the treetime run. The job fails if any step fails or the run does not end in `CLEAN EXIT`. **If you change a command in that route, change it in the workflow too**, or CI stops testing what users are told to run. The light route (`build.sh`) and the developer route are not tested in CI; `tests/tools/test_launcher.sh` covers the launcher and can be run by hand.

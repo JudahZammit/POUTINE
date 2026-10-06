@@ -1,0 +1,42 @@
+# Builds the conda package, installs it as a user would (docs/installation.md "Full route"), and runs poutine on the toy
+# dataset, including treetime. If the documented commands change, change them here too.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash -el {0}   # login shell, so that "conda activate" works
+
+jobs:
+  package-install:
+    name: Conda package build, install and run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+      - name: Build the package
+        run: |
+          conda install -n base -y conda-build
+          conda build . -c conda-forge -c bioconda
+      - name: Install the package into a new environment
+        run: conda create -y -n poutine --use-local -c conda-forge -c bioconda poutine
+      - name: Run poutine on the toy dataset
+        run: |
+          conda activate poutine
+          data=$GITHUB_WORKSPACE/tests/data/toy
+          cd "$RUNNER_TEMP"   # not the repository, so only the installed package is used
+          poutine --version
+          poutine -f "$data/sites.fa" -t "$data/tree.nwk" -p "$data/phenos.txt" -m "$data/sites.map" \
+              -r 1000 -T 2 -d results | tee run.txt
+          grep -q "CLEAN EXIT" run.txt

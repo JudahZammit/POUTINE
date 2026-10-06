@@ -40,13 +40,13 @@ From the repo root, with `treetime` on `PATH` for the second form:
 
 ```
 # bypass treetime
-./poutine.sh -u -f tests/data/mtb-reference/ancestral/ancestral_sequences.fasta \
+poutine -u -f tests/data/mtb-reference/ancestral/ancestral_sequences.fasta \
     -t tests/data/mtb-reference/ancestral/ancestral_tree.newick \
     -p tests/data/mtb-reference/mtb.phenos -m tests/data/mtb-reference/mtb_maf_05.map \
     -r 10000 -T 4 -d /some/output/dir -o mtb.out -l mtb.log
 
 # full run including treetime
-./poutine.sh -f tests/data/mtb-reference/mtb_maf_05.fasta \
+poutine -f tests/data/mtb-reference/mtb_maf_05.fasta \
     -t tests/data/mtb-reference/mtb_maf05.newick \
     -p tests/data/mtb-reference/mtb.phenos -m tests/data/mtb-reference/mtb_maf_05.map \
     -r 10000 -T 4 -d /some/output/dir

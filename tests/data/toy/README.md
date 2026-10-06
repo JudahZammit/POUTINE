@@ -26,13 +26,13 @@ From the repo root, with `treetime` on `PATH` (for example `.venv/bin`):
 
 ```
 # bypass treetime, using the committed ancestral reconstruction
-./poutine.sh -u -f tests/data/toy/ancestral/ancestral_sequences.fasta \
+poutine -u -f tests/data/toy/ancestral/ancestral_sequences.fasta \
     -t tests/data/toy/ancestral/ancestral_tree.newick \
     -p tests/data/toy/phenos.txt -m tests/data/toy/sites.map \
     -r 1000 -T 2 -d /some/output/dir
 
 # full run including treetime
-./poutine.sh -f tests/data/toy/sites.fa -t tests/data/toy/tree.nwk \
+poutine -f tests/data/toy/sites.fa -t tests/data/toy/tree.nwk \
     -p tests/data/toy/phenos.txt -m tests/data/toy/sites.map \
     -r 1000 -T 2 -d /some/output/dir
 ```
@@ -43,4 +43,4 @@ Use `-o`, `-l` and `-X` to pin output filenames; by default they contain timesta
 
 - `CLEAN EXIT` as the last console line; about 3 seconds with 1000 replicates.
 - The `.out` file has a header plus 298 sites.
-- Until seeding exists, columns 1 to 9 and the observed binomial p-values (`obs_binom_pvalue_a1/a2`) are identical between runs; `r_*`, pointwise, `r_maxT_*` and familywise columns differ. See [docs/reproducibility.md](../../../docs/reproducibility.md).
+- Until seeding exists, columns 1 to 9 and the observed binomial p-values (`obs_binom_pvalue_a1/a2`) are identical between runs; `r_*`, pointwise, `r_maxT_*` and familywise columns differ. The stochastic columns are unseeded until milestone step 3.
