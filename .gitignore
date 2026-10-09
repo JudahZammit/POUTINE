@@ -26,8 +26,6 @@ hs_err_pid*
 /.venv/
 /.conda/
 
-# Claude Code local (personal) settings
-.claude/settings.local.json
 # Maven build output
 /target/
 
