@@ -1,5 +1,5 @@
-# Builds the conda package, installs it as a user would (docs/installation.md "Full route"), and runs poutine on the toy
-# dataset, including treetime. If the documented commands change, change them here too.
+# Builds the conda package once (it is noarch), then installs that same package on Linux, macOS and Windows as a user
+# would and runs poutine on the toy dataset, including treetime. If the documented commands change, change them here too.
 name: CI
 
 on:
@@ -14,11 +14,11 @@ concurrency:
 
 defaults:
   run:
-    shell: bash -el {0}   # login shell, so that "conda activate" works
+    shell: bash -el {0}   # login shell, so that "conda activate" works (Git Bash on Windows)
 
 jobs:
-  package-install:
-    name: Conda package build, install and run
+  build:
+    name: Build the conda package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,9 +28,32 @@ jobs:
       - name: Build the package
         run: |
           conda install -n base -y conda-build
-          conda build . -c conda-forge -c bioconda
+          conda build . --output-folder channel -c conda-forge -c bioconda
+      - uses: actions/upload-artifact@v4
+        with:
+          name: poutine-channel
+          path: channel
+
+  test:
+    name: Install and run (${{ matrix.os }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: poutine-channel
+          path: channel
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
       - name: Install the package into a new environment
-        run: conda create -y -n poutine --use-local -c conda-forge -c bioconda poutine
+        run: conda create -y -n poutine -c "$PWD/channel" -c conda-forge -c bioconda poutine
       - name: Run poutine on the toy dataset
         run: |
           conda activate poutine
@@ -39,5 +62,14 @@ jobs:
           poutine --version
           poutine -f "$data/sites.fa" -t "$data/tree.nwk" -p "$data/phenos.txt" -m "$data/sites.map" \
               -r 1000 -T 2 -d results | tee run.txt
-          ./poutine.sh -f "$data/sites.fa" -t "$data/tree.nwk" -p "$data/phenos.txt" -m "$data/sites.map" \
-              -r 1000 -T 2 -d results
+          grep -q "CLEAN EXIT" run.txt
+          ls results/*.out
+      - name: Run the poutine.sh shim
+        if: runner.os != 'Windows'
+        run: |
+          conda activate poutine
+          data=$GITHUB_WORKSPACE/tests/data/toy
+          cd "$RUNNER_TEMP"
+          "$GITHUB_WORKSPACE/poutine.sh" -f "$data/sites.fa" -t "$data/tree.nwk" -p "$data/phenos.txt" -m "$data/sites.map" \
+              -r 1000 -T 2 -d results_shim | tee shim.txt
+          grep -q "CLEAN EXIT" shim.txt
