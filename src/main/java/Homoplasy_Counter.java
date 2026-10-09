@@ -108,7 +108,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         private static boolean use_precomputed_anc_recon = false;
 
         private static int rng_seed = new Random().nextInt(Integer.MAX_VALUE);  // default value := random seed (always logged so that any session can be repeated)
-        @Option(names = {"--rng-seed"}, paramLabel = "<seed>", description = "Seed for the random number generator used in resampling and passed to treetime (default: random, recorded in the log). Results reproduce exactly only with --threads 1", required = false, order = 4)
+        @Option(names = {"-S", "--rng-seed"}, paramLabel = "<seed>", description = "Seed for the random number generator used in resampling and passed to treetime (default: random, recorded in the log). Results reproduce exactly only with --threads 1", required = false, order = 4)
         private void validate_and_set_rng_seed_option(int user_value) {
             if (user_value >= 0)
                 rng_seed = user_value;
