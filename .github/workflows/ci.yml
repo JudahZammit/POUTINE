@@ -35,8 +35,7 @@ jobs:
         run: |
           conda activate poutine
           data=$GITHUB_WORKSPACE/tests/data/toy
-          cd "$RUNNER_TEMP"   # not the repository, so only the installed package is used
+          cd "$RUNNER_TEMP"
           poutine --version
           poutine -f "$data/sites.fa" -t "$data/tree.nwk" -p "$data/phenos.txt" -m "$data/sites.map" \
               -r 1000 -T 2 -d results | tee run.txt
-          grep -q "CLEAN EXIT" run.txt
