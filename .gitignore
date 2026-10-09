@@ -33,3 +33,7 @@ hs_err_pid*
 
 # The old committed class files and jars were removed (see docs/launcher.md); never track build output here
 /compiled/
+
+# Remove Claude
+/.claude/
+CLAUDE.md
