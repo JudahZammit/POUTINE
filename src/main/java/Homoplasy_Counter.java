@@ -5090,6 +5090,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     /**
      * Process-to-process communication (java <-> Rscript)
      */
+    /* 
     private ArrayList<Fishers_Exact_Statistic> fishers_exact_R(ArrayList<int[][]> contingency_tables) {
         ArrayList<Fishers_Exact_Statistic> test_statistics = new ArrayList<>();  // TODO:  pull out to fishers_exact()?
 
@@ -5107,7 +5108,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
             // DEBUG
 //            BufferedWriter bw = new BufferedWriter(new FileWriter("contingency_tables_as_rows.txt"));
 
-/*
+
             // 3 fake contingency tables for testing:
             bw.write("10,10,10,10");
             bw.newLine();
@@ -5115,8 +5116,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             bw.newLine();
             bw.write("50,8,5,49");
             bw.newLine();
-*/
-
 
 // COMMENTED OUT to allow a few fake contingency tables to be tested.  Code below is to process all seg sites:
 
@@ -5220,7 +5219,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         return test_statistics;
     }
 
-
+/*    
     private QSet qvalues(ArrayList<Fishers_Exact_Statistic> test_statistics) {
 
         // get pvalues
@@ -5234,7 +5233,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 //        output_qvalues(all_events, test_statistics, qset);
 
         return qset;
-    }
+    } 
+*/
 
 
     /**
