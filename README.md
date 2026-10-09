@@ -24,6 +24,9 @@ Stay tuned as POUTINE will continue to evolve to include [new major features](ht
 
 ## Updates
 
+### 2026 October 9
+Version 1.0.2. New `--rng-seed` option for reproducible runs.  The seed is printed at the start of every session, recorded in the log file, and passed to treetime.  See "Executing The Program".  Without the option, a random seed is used, as before.
+
 ### 2026 October 6
 Version 1.0.1. The package can now be built locally as a conda package from the repository (`meta.yaml` and `build.sh`.  There are no changes to the program's results.
 
@@ -86,6 +89,14 @@ Small example datasets to try are in [tests/data](tests/data); for example, from
 poutine -f tests/data/mtb-reference/mtb_maf_05.fasta -t tests/data/mtb-reference/mtb_maf05.newick \
     -p tests/data/mtb-reference/mtb.phenos -m tests/data/mtb-reference/mtb_maf_05.map -r 10000 -d results
 ```
+
+**Reproducible runs.**  Resampling is random, so two runs on the same data give slightly different resampling-derived columns (`r_a1`, `r_a2`, `pointwise_pvalue_a1/a2`, `r_maxT_a1/a2` and `familywise_pvalue_a1/a2`).  The observed columns do not change.  To repeat a run exactly, pass a seed and use a single thread:
+
+```
+poutine ... --rng-seed 42 --threads 1
+```
+
+Every session prints its seed under the "Starting poutine session" line and records it in the log file, so a run that did not set a seed can still be repeated by passing the logged value to `--rng-seed`.  When ancestral reconstruction is run, the seed is also passed to treetime.  With more than one thread the replicates are still seeded but are drawn in a thread-dependent order, so results are not guaranteed to be identical.
 
 Since a picture is worth a thousand words:  
 
