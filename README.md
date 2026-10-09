@@ -53,9 +53,12 @@ The recommended route is conda, which provides the Java, Maven and treetime vers
 ```
 git clone https://github.com/Peter-Two-Point-O/POUTINE.git
 cd POUTINE
+
 conda create -n poutine -c conda-forge -c bioconda openjdk=21 maven=3.9.16 treetime=0.12.1
 conda activate poutine
-PREFIX=$CONDA_PREFIX bash build.sh                 # builds the package using the build.sh, note that this is what conda-build does
+
+ # builds the package using the build.sh, note that this is what conda-build does
+bash build.sh
 ```
 
 
