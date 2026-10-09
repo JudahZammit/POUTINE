@@ -12,13 +12,18 @@ source:
 
 build:
   number: 0
-  noarch: generic  # a jar plus a shell launcher, nothing compiled per platform
+  noarch: python  # a jar plus a Python launcher, nothing compiled per platform
+  entry_points:
+    - poutine = poutine_launcher:main
 
 requirements:
   build:
     - openjdk 21.*
     - maven >=3.9
+  host:
+    - python
   run:
+    - python
     - openjdk >=21
     - treetime 0.12.1
 
