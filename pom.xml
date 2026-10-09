@@ -46,14 +46,6 @@
     </dependencies>
 
     <build>
-        <!-- poutine.properties carries the project version into the jar (read by Poutine_Version). -->
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
-
         <!-- All plugin versions are pinned so the build does not depend on the Maven version's defaults. -->
         <plugins>
             <plugin>
