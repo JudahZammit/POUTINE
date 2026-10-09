@@ -2,8 +2,6 @@
 
 # POUTINE
 
-[![CI](https://github.com/Peter-Two-Point-O/POUTINE/actions/workflows/ci.yml/badge.svg)](https://github.com/Peter-Two-Point-O/POUTINE/actions/workflows/ci.yml)  The CI builds the conda package, installs it on a clean Linux machine and runs POUTINE on a small dataset.
-
 POUTINE is a homoplasy counting-based method for genome-wide association studies (GWAS) for microbial genomes.  It is particularly well suited to identify causal variants in strongly clonal populations which exhibit strong and long-range linkage disequilibrium (LD).  In addition to clonal pops, we recommend using homoplasy counting also for populations higher up the recombination scale (including even highly recombining pops) for three major reasons:
 1) Candidate causal variants identified by POUTINE are likely sculpted by convergent evolution and provide orthogonal evidence in conjunction with traditional allele counting methods that the site is causal.   
 2) Based upon dense recombination maps, it is likely that many microbial populations will harbor regions of the genome that show insufficient recombination for traditional allele counting methods to resolve the causal signal from linked sites.  The number and size of these strongly clonal regions may be substantial and would benefit from homoplasy counting.
@@ -27,14 +25,7 @@ Stay tuned as POUTINE will continue to evolve to include [new major features](ht
 ## Updates
 
 ### 2026 October 6
-Version 1.0.1. The package can now be built locally as a conda package from the repository (`meta.yaml` and `build.sh`; see [docs/installation.md](docs/installation.md)).  There are no changes to the program's results.
-
-### 2026 October 5
-Installation has been reworked so that everything POUTINE needs comes from one pinned conda environment (see [Installation](#installation)).  The main changes:
-*   POUTINE is now built with Maven and run with the new `bin/poutine` launcher, which replaces `poutine.sh` (still present, but only as a deprecated shim that forwards to the launcher).
-*   Java 21 is now required.  The conda environment provides it.
-*   POUTINE is supported on **Linux only**.
-*   The treetime guidance in the 2022 entries below (use 0.8.6, curly braces) is superseded: the environment pins treetime 0.12.1, the latest release, and the curly-brace problem did not occur with it.  On our two test datasets treetime 0.7.6, 0.8.6 and 0.12.1 give identical ancestral sequences and identical POUTINE results.
+Version 1.0.1. The package can now be built locally as a conda package from the repository (`meta.yaml` and `build.sh`.  There are no changes to the program's results.
 
 ### 2022 November 30
 Updated the README to include our recommendation to use homoplasy counting for intermediate and highly recombining pops (and not just clonal pops).  We got this question a lot, so we hope this guidance helps.    
@@ -88,8 +79,6 @@ conda activate poutine
 ## Executing The Program
 
 Execute: `poutine --help` to see all command-line options.
-
-`poutine` works from any directory.  It stops with a clear message if Java 21 or newer is not available.  JVM options such as `-Xmx16g` can be passed through the `POUTINE_JAVA_OPTS` environment variable.
 
 Small example datasets to try are in [tests/data](tests/data); for example, from the repository root:
 
