@@ -39,3 +39,5 @@ jobs:
           poutine --version
           poutine -f "$data/sites.fa" -t "$data/tree.nwk" -p "$data/phenos.txt" -m "$data/sites.map" \
               -r 1000 -T 2 -d results | tee run.txt
+          ./poutine.sh -f "$data/sites.fa" -t "$data/tree.nwk" -p "$data/phenos.txt" -m "$data/sites.map" \
+              -r 1000 -T 2 -d results

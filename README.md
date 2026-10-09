@@ -64,19 +64,26 @@ git clone https://github.com/Peter-Two-Point-O/POUTINE.git
 cd POUTINE
 conda create -n poutine -c conda-forge -c bioconda openjdk=21 maven=3.9.16 treetime=0.12.1
 conda activate poutine
-PREFIX=$CONDA_PREFIX bash build.sh                 # builds the jar with Maven (needs network access) and installs it into the environment
-poutine --help
+PREFIX=$CONDA_PREFIX bash build.sh                 # builds the package using the build.sh, note that this is what conda-build does
 ```
 
-`build.sh` puts the `poutine` command and its jar inside the environment, so the clone is not needed after it finishes.  The environment contains:
 
 *   Java 21 (a JVM of at least this version is required; newer JVMs bring substantial speed and memory improvements over old ones such as Java 8)
 *   Maven (only needed to build POUTINE)
 *   treetime 0.12.1 and its Python dependencies (only needed when POUTINE has to run the ancestral reconstruction; not needed with `-u`)
 
-Building POUTINE as a conda package with `conda build`, and running it straight from a checkout while you work on the code, are covered in [docs/installation.md](docs/installation.md).  A bioconda package is planned.
+Building POUTINE as a conda package with `conda build`, and running it straight from a checkout while you work on the code is another option.
+```
+# one-time: install conda-build into base
+conda install -n base -y conda-build
 
-Without conda you need JDK 21 or newer, Maven 3.9 or newer, and `treetime` on your `PATH`; this route is not tested.
+# build the package
+conda build . -c conda-forge -c bioconda
+
+# install into a fresh env from the local build
+conda create -y -n poutine --use-local -c conda-forge -c bioconda poutine
+conda activate poutine
+```
 
 ## Executing The Program
 
