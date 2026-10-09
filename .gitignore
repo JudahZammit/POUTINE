@@ -1,3 +1,6 @@
+# Python
+__pycache__/
+
 # Compiled class file
 #*.class
 
@@ -24,3 +27,17 @@ hs_err_pid*
 
 # Virtual environment
 /.venv/
+/.conda/
+
+# Maven build output
+/target/
+
+# The old committed class files and jars were removed (see docs/launcher.md); never track build output here
+/compiled/
+
+# Remove Claude
+/.claude/
+CLAUDE.md
+
+# Results
+/results/

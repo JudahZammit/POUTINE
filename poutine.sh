@@ -1,2 +1,4 @@
 #!/bin/sh
-java -cp "compiled:compiled/coevolution.jar:compiled/commons-math3-3.6.1.jar:compiled/picocli-4.5.1.jar" Homoplasy_Counter $@
+# Deprecated: use the "poutine" command (conda install). This shim only forwards to it, and will be removed.
+echo "poutine.sh is deprecated; use the 'poutine' command instead." >&2
+exec poutine "$@"
