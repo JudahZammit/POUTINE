@@ -46,9 +46,9 @@ import static java.nio.file.StandardOpenOption.APPEND;
 
 /**
  * @author Peter E Chen
- * @version 1.0.1
+ * @version 1.0.2
  */
-@Command(name = "poutine", version = "%nPOUTINE 1.0.1%n", mixinStandardHelpOptions = true, usageHelpWidth = 210, sortOptions = false, headerHeading = "%n", optionListHeading = "%n", footerHeading = "%n")
+@Command(name = "poutine", version = "%nPOUTINE 1.0.2%n", mixinStandardHelpOptions = true, usageHelpWidth = 210, sortOptions = false, headerHeading = "%n", optionListHeading = "%n", footerHeading = "%n")
 public class Homoplasy_Counter implements Callable<Integer> {
     @Spec
     static CommandSpec spec;
@@ -106,6 +106,15 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         @Option(names = {"-u", "--use-precomputed-anc-recon"}, description = "Use precomputed ancestral reconstruction as input. Specify --fasta for ancestral fasta file and --tree for ancestral newick file.", required = false, order = 3)
         private static boolean use_precomputed_anc_recon = false;
+
+        private static int rng_seed = new Random().nextInt(Integer.MAX_VALUE);  // default value := random seed (always logged so that any session can be repeated)
+        @Option(names = {"-S", "--rng-seed"}, paramLabel = "<seed>", description = "Seed for the random number generator used in resampling and passed to treetime (default: random, recorded in the log). Results reproduce exactly only with --threads 1", required = false, order = 4)
+        private void validate_and_set_rng_seed_option(int user_value) {
+            if (user_value >= 0)
+                rng_seed = user_value;
+            else
+                throw new ParameterException(spec.commandLine(), String.format("%nInvalid value '%s' for option '--rng-seed': " + "seed must be >= 0", user_value));
+        }
     }
 
     @ArgGroup(validate = false, heading = "@|bg(85) %nRuntime options%n|@")
@@ -154,7 +163,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
 // Remaining global variables:
-    private final String VERSION = "1.0.1";
+    private final String VERSION = "1.0.2";
 //    private final String newick_filename;
 //    private final String nexus_filename;  // treetime's annotated nexus file containing tree with internal nodes labeled
 //    private final String ancestral_reconstruction_filename;  // treetime's fasta file containing ancestral genotypes
@@ -192,6 +201,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
 //    private final int m = 1000000;  // # replicates (# perms)
     private int m;  // # replicates (# perms)
+    private Random rnd;  // single generator (seeded from --rng-seed) shared by all permutations in a session
 //    private final int min_hcount = 7;  // 1 := use all homoplasic seg sites, 0 := use all seg sites including those without any homoplasic mutations on either allele
 
     private boolean DEBUG_MODE;
@@ -234,6 +244,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         String input_newick = read_and_validate_input_newick_format();
 
         System.out.printf(Ansi.AUTO.string("@|fg(213) %nStarting poutine session: " + session_start_time.format(DateTimeFormatter.ofPattern("YYYY-LLLL-dd EEEE HH'h':mm'm':ss's' O")) + "%n|@"));
+        System.out.printf(Ansi.AUTO.string("@|fg(213) Random number generator seed: " + AlgoParams.rng_seed + "%n|@"));
 
         // WARNING:  warn user if user-specified # replicates is potentially too low to properly estimate statistical significance
         if (m < 10000) {
@@ -486,6 +497,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     private void more_cmdline_magic() {
         m = AlgoParams.m;  // not the most elegant (keep for now), but i want to keep the m variable the same as before (before exposing the parameter on the commandline) instead of refactoring to AlgoParams.m all over the place.
         DEBUG_MODE = outputOptions.DEBUG_MODE;
+        rnd = new Random(AlgoParams.rng_seed);
 
         // input files: ==========================================
         if ((inputFiles.genotypes.msa_fasta_filename != null) && (!new File(inputFiles.genotypes.msa_fasta_filename).exists()))  // user has selected --fasta option AND user-specified fasta file does not exist
@@ -656,6 +668,10 @@ public class Homoplasy_Counter implements Callable<Integer> {
             log.write("min # homoplasic mutations required at each segregating site: " + AlgoParams.min_hcount);
             log.newLine();
 
+            // rng seed
+            log.write("rng seed: " + AlgoParams.rng_seed);
+            log.newLine();
+
             // use-precomputed-anc-recon
             log.write("Is --use-precomputed-anc-recon in use?: " + algoParams.use_precomputed_anc_recon);
             log.newLine();
@@ -821,7 +837,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         try {
             // treetime ancestral --aln (user-specified msa fasta) --tree (user-specified newick) --outdir ancestral_reconstruction --gtr infer
 //        ProcessBuilder pb = new ProcessBuilder("treetime_no_command_available", "ancestral", "--aln", msa_fasta_filename, "--tree", user_input_newick_filename, "--outdir", anc_recon_dir, "--gtr", "infer");
-            ProcessBuilder pb = new ProcessBuilder("treetime", "ancestral", "--aln", inputFiles.genotypes.msa_fasta_filename, "--tree", inputFiles.otherInputFiles.newick_filename, "--outdir", outputOptions.anc_recon_dir.getPath(), "--gtr", "infer");
+            ProcessBuilder pb = new ProcessBuilder("treetime", "ancestral", "--aln", inputFiles.genotypes.msa_fasta_filename, "--tree", inputFiles.otherInputFiles.newick_filename, "--outdir", outputOptions.anc_recon_dir.getPath(), "--rng-seed", String.valueOf(AlgoParams.rng_seed), "--gtr", "infer");
 
             // DEBUG
 //        pb = pb.inheritIO();
@@ -2036,25 +2052,25 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
 
-    /**
-     * test stat #1:  fisher's exact
-     * <p>
-     * This association test statistic only operates on those sites where there are homoplasic mutations occurring in both alleles so that a 2x2 contingency table can be
-     * constructed.
-     *
-     * @param all_events
-     * @param phenos
-     */
-    private void assoc_test_stat_fishers_exact(ArrayList<Homoplasy_Events> all_events, HashMap<String, String> phenos) {
-
-        // use only "homoplasically segregating" sites
-        ArrayList<Homoplasy_Events> homoplasically_segregating_sites = get_only_homoplasically_segregating_sites(all_events);
-        ArrayList<Fishers_Exact_Statistic> test_statistics = fishers_exact(homoplasically_segregating_sites, phenos);
-
-        // qvalues
-        QSet qset = qvalues(test_statistics);
-        output_qvalues(homoplasically_segregating_sites, test_statistics, qset);
-    }
+//    /**
+//     * test stat #1:  fisher's exact
+//     * <p>
+//     * This association test statistic only operates on those sites where there are homoplasic mutations occurring in both alleles so that a 2x2 contingency table can be
+//     * constructed.
+//     *
+//     * @param all_events
+//     * @param phenos
+//     */
+//    private void assoc_test_stat_fishers_exact(ArrayList<Homoplasy_Events> all_events, HashMap<String, String> phenos) {
+//
+//        // use only "homoplasically segregating" sites
+//        ArrayList<Homoplasy_Events> homoplasically_segregating_sites = get_only_homoplasically_segregating_sites(all_events);
+//        ArrayList<Fishers_Exact_Statistic> test_statistics = fishers_exact(homoplasically_segregating_sites, phenos);
+//
+//        // qvalues
+//        QSet qset = qvalues(test_statistics);
+//        output_qvalues(homoplasically_segregating_sites, test_statistics, qset);
+//    }
 
 
     /**
@@ -4908,7 +4924,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         }
 
         // permute phenos
-        Collections.shuffle(pheno_labels);
+        Collections.shuffle(pheno_labels, rnd);
 
         // reassociate phenos (now newly permuted) with strain ids (which are in original key ordering)
         HashMap<String, String> permuted_phenos = new HashMap<>();
@@ -5002,24 +5018,24 @@ public class Homoplasy_Counter implements Callable<Integer> {
 */
 
 
-    /**
-     * Counts geno-pheno state pairs, and interfaces w R process to calculate fisher's exact (two-sided) for all sites.
-     */
-    private ArrayList<Fishers_Exact_Statistic> fishers_exact(ArrayList<Homoplasy_Events> homoplasically_segregating_sites, HashMap<String, String> phenos) {
-
-        // TODO:  refactor count_phenos() into 2 methods:
-        /*
-        for (homoplasically segregating sites) {
-            count_homoplasies()
-            build_2x2()
-        }
-         */
-
-        ArrayList<int[][]> contingency_tables = count_phenos(homoplasically_segregating_sites, phenos);
-        ArrayList<Fishers_Exact_Statistic> test_statistics = fishers_exact_R(contingency_tables);
-
-        return test_statistics;
-    }
+//    /**
+//     * Counts geno-pheno state pairs, and interfaces w R process to calculate fisher's exact (two-sided) for all sites.
+//     */
+//    private ArrayList<Fishers_Exact_Statistic> fishers_exact(ArrayList<Homoplasy_Events> homoplasically_segregating_sites, HashMap<String, String> phenos) {
+//
+//        // TODO:  refactor count_phenos() into 2 methods:
+//        /*
+//        for (homoplasically segregating sites) {
+//            count_homoplasies()
+//            build_2x2()
+//        }
+//         */
+//
+//        ArrayList<int[][]> contingency_tables = count_phenos(homoplasically_segregating_sites, phenos);
+//        ArrayList<Fishers_Exact_Statistic> test_statistics = fishers_exact_R(contingency_tables);
+//
+//        return test_statistics;
+//    }
 
 
     /**
@@ -5090,6 +5106,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     /**
      * Process-to-process communication (java <-> Rscript)
      */
+    /* 
     private ArrayList<Fishers_Exact_Statistic> fishers_exact_R(ArrayList<int[][]> contingency_tables) {
         ArrayList<Fishers_Exact_Statistic> test_statistics = new ArrayList<>();  // TODO:  pull out to fishers_exact()?
 
@@ -5107,7 +5124,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
             // DEBUG
 //            BufferedWriter bw = new BufferedWriter(new FileWriter("contingency_tables_as_rows.txt"));
 
-/*
+
             // 3 fake contingency tables for testing:
             bw.write("10,10,10,10");
             bw.newLine();
@@ -5115,8 +5132,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             bw.newLine();
             bw.write("50,8,5,49");
             bw.newLine();
-*/
-
 
 // COMMENTED OUT to allow a few fake contingency tables to be tested.  Code below is to process all seg sites:
 
@@ -5220,7 +5235,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         return test_statistics;
     }
 
-
+/*    
     private QSet qvalues(ArrayList<Fishers_Exact_Statistic> test_statistics) {
 
         // get pvalues
@@ -5234,7 +5249,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 //        output_qvalues(all_events, test_statistics, qset);
 
         return qset;
-    }
+    } 
+*/
 
 
     /**
@@ -6011,8 +6027,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
 
         private void permute() {
-            Collections.shuffle(a1_permutation_array);
-            Collections.shuffle(a2_permutation_array);
+            Collections.shuffle(a1_permutation_array, rnd);
+            Collections.shuffle(a2_permutation_array, rnd);
         }
 
 

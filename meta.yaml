@@ -1,7 +1,7 @@
 # Local conda recipe. Build and install from the repository root:
 #   conda build . -c conda-forge -c bioconda
 #   conda install --use-local poutine -c conda-forge -c bioconda
-{% set version = "1.0.1" %}  # keep in step with <version> in pom.xml and the version strings in Homoplasy_Counter.java
+{% set version = "1.0.2" %}  # keep in step with <version> in pom.xml and the version strings in Homoplasy_Counter.java
 
 package:
   name: poutine
