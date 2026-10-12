@@ -24,6 +24,9 @@ Stay tuned as POUTINE will continue to evolve to include [new major features](ht
 
 ## Updates
 
+### 2026 October 12
+Version 1.0.3. Added a golden output test (`pytest tests`) that runs POUTINE with a fixed seed on two example datasets and checks that the results do not change.  There are no changes to the program's results.
+
 ### 2026 October 9
 Version 1.0.2. New `--rng-seed` option for reproducible runs.  The seed is printed at the start of every session, recorded in the log file, and passed to treetime.  See "Executing The Program".  Without the option, a random seed is used, as before.
 
@@ -56,7 +59,7 @@ The recommended route is conda, which provides the Java, Maven and treetime vers
 ```
 git clone https://github.com/Peter-Two-Point-O/POUTINE.git
 cd POUTINE
-conda create -n poutine -c conda-forge -c bioconda openjdk=21 maven=3.9.16 treetime=0.12.1
+conda create -n poutine -c conda-forge -c bioconda openjdk=21 maven=3.9.16 treetime=0.12.1 pytest pandas
 conda activate poutine
 bash build.sh                 # builds the package using the build.sh, note that this is what conda-build does
 ```
@@ -65,6 +68,7 @@ bash build.sh                 # builds the package using the build.sh, note that
 *   Java 21 (a JVM of at least this version is required; newer JVMs bring substantial speed and memory improvements over old ones such as Java 8)
 *   Maven (only needed to build POUTINE)
 *   treetime 0.12.1 and its Python dependencies (only needed when POUTINE has to run the ancestral reconstruction; not needed with `-u`)
+*   pytest and pandas (only needed to run the tests)
 
 Building POUTINE as a conda package with `conda build`, and running it straight from a checkout while you work on the code is another option.
 ```

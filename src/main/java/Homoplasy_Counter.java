@@ -46,9 +46,9 @@ import static java.nio.file.StandardOpenOption.APPEND;
 
 /**
  * @author Peter E Chen
- * @version 1.0.2
+ * @version 1.0.3
  */
-@Command(name = "poutine", version = "%nPOUTINE 1.0.2%n", mixinStandardHelpOptions = true, usageHelpWidth = 210, sortOptions = false, headerHeading = "%n", optionListHeading = "%n", footerHeading = "%n")
+@Command(name = "poutine", version = "%nPOUTINE 1.0.3%n", mixinStandardHelpOptions = true, usageHelpWidth = 210, sortOptions = false, headerHeading = "%n", optionListHeading = "%n", footerHeading = "%n")
 public class Homoplasy_Counter implements Callable<Integer> {
     @Spec
     static CommandSpec spec;
@@ -163,7 +163,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
 // Remaining global variables:
-    private final String VERSION = "1.0.2";
+    private final String VERSION = "1.0.3";
 //    private final String newick_filename;
 //    private final String nexus_filename;  // treetime's annotated nexus file containing tree with internal nodes labeled
 //    private final String ancestral_reconstruction_filename;  // treetime's fasta file containing ancestral genotypes

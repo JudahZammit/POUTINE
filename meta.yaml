@@ -1,7 +1,7 @@
 # Local conda recipe. Build and install from the repository root:
 #   conda build . -c conda-forge -c bioconda
 #   conda install --use-local poutine -c conda-forge -c bioconda
-{% set version = "1.0.2" %}  # keep in step with <version> in pom.xml and the version strings in Homoplasy_Counter.java
+{% set version = "1.0.3" %}  # keep in step with <version> in pom.xml and the version strings in Homoplasy_Counter.java
 
 package:
   name: poutine
@@ -26,6 +26,11 @@ requirements:
     - python
     - openjdk >=21
     - treetime 0.12.1
+
+test:
+  requires:  # for tests/test_golden.py; conda-build does not run it, CI does
+    - pytest
+    - pandas
 
 about:
   home: https://github.com/Peter-Two-Point-O/POUTINE
