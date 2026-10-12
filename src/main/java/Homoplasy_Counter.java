@@ -17,60 +17,31 @@
  */
 
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.PrintStream;
-import java.io.StringReader;
+import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
+import org.apache.commons.math3.stat.inference.BinomialTest;
+import org.gersteinlab.coevolution.core.data.*;
+import org.gersteinlab.coevolution.core.io.*;
+import picocli.CommandLine;
+import picocli.CommandLine.*;
+import picocli.CommandLine.Help.*;
+import picocli.CommandLine.Model.*;
+
+//import static org.fusesource.jansi.AnsiConsole.*;
+//import static org.fusesource.jansi.Ansi.*;
+
+import java.io.*;
 import java.nio.file.Files;
-import static java.nio.file.StandardOpenOption.APPEND;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 
-import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
-import org.apache.commons.math3.stat.inference.BinomialTest;
-import org.gersteinlab.coevolution.core.data.DataFormatException;
-import org.gersteinlab.coevolution.core.data.NewickTree;
-import org.gersteinlab.coevolution.core.data.NewickTreeNode;
-import org.gersteinlab.coevolution.core.io.NewickTreeReader;
-import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
-
-import picocli.CommandLine;
-import picocli.CommandLine.ArgGroup;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Help.*;
-import picocli.CommandLine.Help.Ansi;
-import picocli.CommandLine.Model.*;
-import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
-import picocli.CommandLine.Spec;
+import static java.nio.file.StandardOpenOption.APPEND;
 
 
 /**
