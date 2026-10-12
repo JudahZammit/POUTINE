@@ -27,6 +27,11 @@ requirements:
     - openjdk >=21
     - treetime 0.12.1
 
+test:
+  requires:  # for tests/test_golden.py; conda-build does not run it, CI does
+    - pytest
+    - pandas
+
 about:
   home: https://github.com/Peter-Two-Point-O/POUTINE
   license: GPL-3.0-or-later
