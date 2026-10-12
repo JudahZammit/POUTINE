@@ -24,6 +24,9 @@ Stay tuned as POUTINE will continue to evolve to include [new major features](ht
 
 ## Updates
 
+### 2026 October 12
+Version 1.0.3. Added a golden output test (`pytest tests`) that runs POUTINE with a fixed seed on two example datasets and checks that the results do not change.  There are no changes to the program's results.
+
 ### 2026 October 9
 Version 1.0.2. New `--rng-seed` option for reproducible runs.  The seed is printed at the start of every session, recorded in the log file, and passed to treetime.  See "Executing The Program".  Without the option, a random seed is used, as before.
 
