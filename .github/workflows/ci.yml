@@ -64,6 +64,12 @@ jobs:
               -r 1000 -T 2 -d results | tee run.txt
           grep -q "CLEAN EXIT" run.txt
           ls results/*.out
+      - name: Run the golden output test
+        if: runner.os == 'Linux'
+        run: |
+          conda install -y -n poutine -c conda-forge pytest pandas
+          conda activate poutine
+          pytest tests
       - name: Run the poutine.sh shim
         if: runner.os != 'Windows'
         run: |
