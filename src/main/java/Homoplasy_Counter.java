@@ -17,31 +17,58 @@
  */
 
 
-import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
-import org.apache.commons.math3.stat.inference.BinomialTest;
-import org.gersteinlab.coevolution.core.data.*;
-import org.gersteinlab.coevolution.core.io.*;
-import picocli.CommandLine;
-import picocli.CommandLine.*;
-import picocli.CommandLine.Help.*;
-import picocli.CommandLine.Model.*;
-
-//import static org.fusesource.jansi.AnsiConsole.*;
-//import static org.fusesource.jansi.Ansi.*;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintStream;
+import java.io.StringReader;
 import java.nio.file.Files;
+import static java.nio.file.StandardOpenOption.APPEND;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 
-import static java.nio.file.StandardOpenOption.APPEND;
+import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
+import org.apache.commons.math3.stat.inference.BinomialTest;
+import org.gersteinlab.coevolution.core.data.DataFormatException;
+import org.gersteinlab.coevolution.core.data.NewickTree;
+import org.gersteinlab.coevolution.core.data.NewickTreeNode;
+import org.gersteinlab.coevolution.core.io.NewickTreeReader;
+import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
+
+import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Help.Ansi;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.Spec;
 
 
 /**
@@ -164,45 +191,18 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
 // Remaining global variables:
     private final String VERSION = "1.0.3";
-//    private final String newick_filename;
-//    private final String nexus_filename;  // treetime's annotated nexus file containing tree with internal nodes labeled
-//    private final String ancestral_reconstruction_filename;  // treetime's fasta file containing ancestral genotypes
-//    private final String pos_cross_ref_filename;  // cfml position file no longer in use
-
-//    private final String pheno_filename;
-//    private final String map_filename;
-//    private final String msa_fasta_filename;  // user-specified msa used to infer input phylogeny
-//    private final String user_input_newick_filename;  // user-specified phylogeny
-
-//    private final String recomb_tracts_filename;
     private final boolean qvalues_option = false;  // false := turn off qvalue calculations as well as outputting these results
 
-//    private final String R_dir = "/Users/blame_monster/Research/Indie/Homoplasy_Counting/R_code/";  // dir that contains R code (hard-coded for local)
     private final String R_dir = "/home/blame_monster/Research/Homoplasy_Counting/R_Code/";  // hard-coded for Kimura for testing
     private final boolean EXTANT_NODES_ONLY = true;  // turns off ancestrally reconstructed phenotypes, ie only use leaves
-//    private final String anc_recon_dir = "ancestral_reconstruction";  // path is relative to user's current working dir
-
-//    private final double p_success = 0.56;  // mtb genome-wide homoplasic mutations only (derived from diagnostic code)
-//    private final double p_success = 0.38;  // mtb genome-wide all mutations 47 cases /(47 + 77 controls)
-//    private final double p_success = 0.68;    // breo genome-wide homoplasic mutations only (derived from diagnostic code)
-//    private final double p_success_a1 = 0.58622974;  // breo homoplasic mutations a1 only (derived from diagnostic code)
-//    private final double p_success_a2 = 0.7205308;  // breo homoplasic mutations a2 only (derived from diagnostic code)
-//    private final double p_success_a1 = 0.5625;  // mtb homoplasic mutations a1 only (derived from diagnostic code)
-//    private final double p_success_a2 = 0.5654608;  // mtb homoplasic mutations a2 only (derived from diagnostic code)
-//    private final double p_success_a1 = 0.379;  // mtb all mutations resampling space (p_success|both alleles)
-//    private final double p_success_a2 = 0.379;  // mtb all mutations resampling space (p_success|both alleles)
 
     private enum Allele_Type {A1, A2}
     private enum Resampling_Space_Type {ALL_MUTATIONS, HOMOPLASIC_MUTATIONS_ONLY}
     private final Resampling_Space_Type R_SPACE_TYPE = Resampling_Space_Type.ALL_MUTATIONS;
     private final AlternativeHypothesis TAIL_TYPE = AlternativeHypothesis.GREATER_THAN;  // Apache Commons enum {GREATER_THAN := right-sided test (cases), TWO_SIDED, LESS_THAN}
-//    private final AlternativeHypothesis TAIL_TYPE = AlternativeHypothesis.TWO_SIDED;
-//    private final AlternativeHypothesis TAIL_TYPE = AlternativeHypothesis.LESS_THAN;
 
-//    private final int m = 1000000;  // # replicates (# perms)
     private int m;  // # replicates (# perms)
     private Random rnd;  // single generator (seeded from --rng-seed) shared by all permutations in a session
-//    private final int min_hcount = 7;  // 1 := use all homoplasic seg sites, 0 := use all seg sites including those without any homoplasic mutations on either allele
 
     private boolean DEBUG_MODE;
 
@@ -219,17 +219,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     public static void main(String[] args) {
         CommandLine cmdline = new CommandLine(new Homoplasy_Counter());
         cmdline.setUsageHelpLongOptionsMaxWidth(40);
-
-        // registering a custom commandline exception handler to get rid of all ANSI escape sequences when outputting uncaught runtime exception; this is useful because program redirects these types of exceptions to file.
-//        IParameterExceptionHandler exception_handler = cmdline.getParameterExceptionHandler();
-//        cmdline.setParameterExceptionHandler((param_exception, cmdline_args) ->
-//                {
-//                    System.setProperty("picocli.ansi", "false");
-//                    return exception_handler.handleParseException(param_exception, cmdline_args);
-//                }
-//        );
-//        ColorScheme color_scheme = cmdline.getColorScheme();
-//        System.out.println("color_scheme = " + color_scheme);
 
         int exitCode = cmdline.execute(args);
         System.exit(exitCode);
@@ -295,8 +284,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         // PLINK map file that contains physical positions in the order of the ped file used to create input files for CFML
         int[] physical_poss = get_physical_positions();
 
-        // TODO:  refactor all ArrayLists into arrays[] since I know the sizes ahead of time?
-
         // check for mismatch of # seg sites between ancestral genotype file and input positions file
         check_num_seg_sites(seg_sites, physical_poss);
 
@@ -308,19 +295,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         // homoplasy counts
         ArrayList<Homoplasy_Events> all_events = count_all_homoplasy_events(tree, seg_sites, physical_poss);
-
-        /** closer look at site 1674048
-//        System.out.println("all_events.size() = " + all_events.size());
-//        all_events.forEach(s -> System.out.println(s.toString()));
-//        System.out.println("\n\n");
-        int segsite_index = -1;
-        for (int i = 0; i < all_events.size(); i++) {
-            if (all_events.get(i).physical_pos == 1674048)
-                segsite_index = i;
-        }
-        this.output_segsite_events_as_branch_colors(all_events, segsite_index);
-        System.exit(-1);
-        */
 
         assoc(all_events, phenos);
 
@@ -357,7 +331,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             System.exit(-1);
         }
     }
-
 
 
     /**
@@ -414,26 +387,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         }
     }
 
-
-
-
-//    private String read_newick() {
-//
-//        String newick = null;
-//
-//        try (BufferedReader br = new BufferedReader(new FileReader(inputFiles.otherInputFiles.newick_filename))) {
-//
-//        } catch (IOException e) {
-//            System.out.printf(Ansi.AUTO.string("@|red,bold %nAn error has occurred while reading the ancestral newick tree file. Please see the stack trace in the log file for more information on this error.%n|@"));
-//            e.printStackTrace();
-//            System.exit(-1);
-//        }
-//
-//        return newick;
-//    }
-
-
-
     /**
      * This method writes out a newick tree to a file named ancestral_tree.newick (inside anc_recon_dir) so that users have the ability to reuse this
      * newick file for subsequent poutine sessions without invoking a redundant ancestral reconstruction.  See --use-precomputed-anc-recon cmdline option.
@@ -450,7 +403,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             System.exit(-1);
         }
     }
-
 
 
     /**
@@ -488,8 +440,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         return newick;
     }
-
-
 
     /*
      * At some point, all commandline validation checks may go here to keep the code tidy.
@@ -563,8 +513,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         }
     }
 
-
-
     /**
      * This method is used to set a directory path.  Top-level meaning that this allows the user to set a dir anywhere on their filesystem.
      * This method also checks the following:
@@ -609,8 +557,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      */
     private File get_validated_relative_path(File output_dir, File file, String default_pathname, String curr_time) {
 
-//        if (output_dir == null)
-
         // set default if no user-specified output file
         if (file == null) // if no user-specified output file, set to default file
             file = new File(default_pathname);
@@ -625,7 +571,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         return file;
     }
-
 
 
     /*
@@ -685,7 +630,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             log.newLine();
 
             // out files
-//            log.write(String.format("output files:%n" +
             log.write(String.format(
                     "     log file: " + outputOptions.log_file.getAbsolutePath() + "%n" +
                     "     results file (sorted by physical position): " + outputOptions.output_file.getAbsolutePath() + "%n" +
@@ -729,104 +673,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         }
     }
 
-
-//  NOTE:  moved everything in main() to call()
-//    public static void main(String[] args) {
-//
-//        Homoplasy_Counter homoplaser = new Homoplasy_Counter(args);
-//
-//        // PLINK .map file that contains physical positions in the order of the ped file used to create input files for CFML
-//        int[] physical_poss = homoplaser.get_physical_positions();
-//
-//        /*  cfml version
-//        // phylogeny reflecting ALL seg sites
-//        NewickTree tree = homoplaser.build_tree();
-//        */
-//
-//        /*
-//         * ancestral recon pseudocode:
-//         * - kick off process to start treetime <--- ancestral_reconstruction(). this should be it's own method without any other major tasks in it
-//         *
-//         * These methods should remain in main() as it is currently:
-//         * - read in output file nexus          <--- nexus_to_newick()
-//         * - read in output file msa fasta      <--- build_seg_sites()
-//         * - build_tree(newick)
-//         */
-//        homoplaser.ancestral_reconstruction();
-//
-//        // parse treetime's annotated nexus file (with internal node's labelled) -> newick
-//        String newick = homoplaser.nexus_to_newick();
-//
-//        // create tree data structure
-//        NewickTree tree = homoplaser.build_tree(newick);
-//
-///*      // process cfml version of genotype ancestral reconstruction:
-//        HashMap<String , char[]> seg_sites = homoplaser.build_seg_sites();
-//        int[] segsite_indexes = homoplaser.get_segsite_indexes();
-//        // sanity check for physical positions (i'm moving between map/ped <-> CFML position_cross_reference/ML_sequence.fasta worlds)
-//        System.out.println("physical_poss.length = " + physical_poss.length);
-//        System.out.println("segsite_indexes.length = " + segsite_indexes.length);  // this should = above length
-////        System.out.println("seg_sites.size() = " + seg_sites.size());  // hmmm this returns # nodes (extant + ancestral) not # of alleles at each site
-//*/
-//
-//        // process treetime's ancestral reconstruction fasta output file:
-//        // read in ancestral genotypes
-//        HashMap<String , char[]> seg_sites = homoplaser.build_seg_sites();
-//        // output # segregating sites (map file and anc recon fasta file)
-//        System.out.println("physical_poss.length = " + physical_poss.length);
-////        seg_sites.values().iterator().next().length  // # segsites from treetime's ancestral fasta (in first HashMap entry only, should be same as rest of the entries)
-//        // TODO:  rename build_seg_sites() -> read_ancestral_seqs()?  rename seg_sites -> ancestral_seqs?
-//
-//
-//        // TODO:  refactor all ArrayLists into arrays[] since I know the sizes ahead of time?
-//
-//        HashMap<String, String> phenos = homoplaser.read_phenos();  // only extant phenotypes
-//
-//        homoplaser.log_session_info();
-//
-//        // homoplasy counts
-////        ArrayList<Homoplasy_Events> all_events = homoplaser.count_all_homoplasy_events(tree, seg_sites, segsite_indexes, physical_poss);  // cfml version
-//        ArrayList<Homoplasy_Events> all_events = homoplaser.count_all_homoplasy_events(tree, seg_sites, physical_poss);  // treetime version
-//
-//        // EXAMINE itol tree to think about effect sizes
-////        homoplaser.output_segsite_MRCAs_and_clades_as_branch_colors(all_events, 1044);
-////        homoplaser.output_segsite_events_as_branch_colors(all_events, 1044);
-////        System.exit(-1);
-//
-//  /*    // assess magnitude of recombination
-//        // DEBUG:  is all_events sorted by phys pos?
-////        all_events.forEach(s -> System.out.println(s.segsite_ID + "\t" + s.physical_pos));
-//        homoplaser.identify_recombinant_segsites(all_events, phenos);
-//        System.exit(-1); // stop here for debugging
-//        homoplaser.calc_magnitude_recomb(all_events);
-//
-//        // REMOVE RECOMBINANT REGIONS from all_events
-//        homoplaser.remove_all_recombinant_regions(all_events);
-//*/
-//
-//        homoplaser.assoc(all_events, phenos);
-//
-////        homoplaser.assess_significance(all_events, phenos);  // DEPRECATED
-//
-//        // Summary:  calculate some stats and explore both the homoplasy events and ancestral reconstructions
-////        homoplaser.characterize(all_events, tree);
-//
-//        // DEBUG
-////        homoplaser.debug(all_events, seg_sites, segsite_indexes);
-//
-//        // TEST: jsc library
-////        homoplaser.test_jsc();
-//
-//        // (deprecated) test "filesystem" version of "piping" code between Java <-> R
-////        homoplaser.test_piping_fs_version();
-//
-//        // TEST "process-to-process" version (java process <-> Rscript process)
-////        homoplaser. test_p_to_p_version();
-//
-//        homoplaser.end_session();
-//    }
-
-
     /**
      * This method . . .
      */
@@ -835,14 +681,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         System.out.printf(Ansi.AUTO.string("@|fg(123) %nExecuting ancestral reconstruction . . . |@"));
 
         try {
-            // treetime ancestral --aln (user-specified msa fasta) --tree (user-specified newick) --outdir ancestral_reconstruction --gtr infer
-//        ProcessBuilder pb = new ProcessBuilder("treetime_no_command_available", "ancestral", "--aln", msa_fasta_filename, "--tree", user_input_newick_filename, "--outdir", anc_recon_dir, "--gtr", "infer");
             ProcessBuilder pb = new ProcessBuilder("treetime", "ancestral", "--aln", inputFiles.genotypes.msa_fasta_filename, "--tree", inputFiles.otherInputFiles.newick_filename, "--outdir", outputOptions.anc_recon_dir.getPath(), "--rng-seed", String.valueOf(AlgoParams.rng_seed), "--gtr", "infer");
-
-            // DEBUG
-//        pb = pb.inheritIO();
-//        System.out.println("pb.command() = " + pb.command());
-//        System.out.println("pb.environment() = " + pb.environment());
 
             outputOptions.log.write(String.format("%ntreetime command: " + pb.command() + "%n"));
             outputOptions.log.flush();
@@ -851,8 +690,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             anc_recon_process.waitFor();
 
             if (DEBUG_MODE) {
-//                System.out.print("process finished with exit value = ");
-//                System.out.println(anc_recon_process.exitValue());
                 outputOptions.debug.write("\nancestral reconstruction process finished with exit value = " + anc_recon_process.exitValue() + "\n");
                 outputOptions.debug.flush();
             }
@@ -868,7 +705,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             System.exit(-1);
         }
 
-//        System.out.println("exiting ancestral_reconstruction()");
         System.out.printf("reconstruction complete.%n");
     }
 
@@ -892,28 +728,22 @@ public class Homoplasy_Counter implements Callable<Integer> {
         String newick = null;
 
         try (BufferedReader br = new BufferedReader(new FileReader(outputOptions.anc_recon_dir + File.separator + "annotated_tree.nexus"))) {
-            // moved BufferedReader into try-with-resources statement above
-//            BufferedReader br = new BufferedReader(new FileReader(anc_recon_dir + File.separator + "annotated_tree.nexus"));
-//            BufferedReader br = new BufferedReader(new FileReader(outputOptions.anc_recon_dir + File.separator + "annotated_tree.nexus"));
 
             String currline;
             while (!(currline = br.readLine()).equalsIgnoreCase("Begin Trees;")) {
             }
 
             StringBuilder newick_line = new StringBuilder(br.readLine());
-//            System.out.println("newick_line = " + newick_line);
 
             // trim away the front of the newick line (typically contains: "Tree tree1=[&U]"), specifically everything before first "(" which begins newick tree
             int start_of_newick_tree = newick_line.indexOf("(");
             newick_line.delete(0, start_of_newick_tree);
-//            System.out.println("after front trimming = " + newick_line);
 
             // remove all annotations from newick line (annotations appear as [& . . .]
             int start_annot;
             while ((start_annot = newick_line.indexOf("[")) != -1) {
                 int end_annot = newick_line.indexOf("]");
                 newick_line.delete(start_annot, end_annot + 1);  // end index is exclusive so +1 to delete "]"
-//                System.out.println("one annot deleted = " + start_annot + " " + end_annot + ": " + newick_line);
             }
 
             newick = newick_line.toString();
@@ -923,70 +753,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
             System.exit(-1);
         }
 
-        // write newick tree out to file inside anc_recon_dir
-
-
         return newick;
     }
-
-
-    /**
-     * This method uses cfml's recombinant tract file to identify all segsites that fall within any of these regions, regardless of which sample the recomb tract is
-     * detected in.  Here, I'm focusing on segregating sites, not mutations within a specific sample.
-     *
-     * @param all_events
-     * @param phenos
-     * @return
-     */
-    /*private void identify_recombinant_segsites(ArrayList<Homoplasy_Events> all_events, HashMap<String, String> phenos) {
-        // boolean[] recombinant_segsites = new boolean[all_events.size()];
-
-        *//*
-        for (recombinant region, 1 row from cfml recombinant tract file) {
-            - mark all elements from all_events that are within this region
-        }
-        *//*
-
-        // mark wich segsites are covered by at least 1 recomb tract in at least 1 sample from cfml recomb tract file
-        try (BufferedReader br = new BufferedReader(new FileReader(recomb_tracts_filename))) {
-            String currline;
-            br.readLine();  // skip header
-            while ((currline = br.readLine()) != null) {  // 3 cols (tab-delimited):  sample_ID, start recomb tract, end
-                String[] cols = currline.split("\t");
-                String sample_ID = cols[0];
-                int tract_start = Integer.parseInt(cols[1]);
-                int tract_end = Integer.parseInt(cols[2]);
-
-                // only use recomb tracts from extant nodes
-                if (!phenos.containsKey(sample_ID)) {
-                    continue;
-                }
-
-//                all_events.stream().filter(s -> s.physical_pos >= tract_start && s.physical_pos <= tract_end).forEach(s -> s.isRecombinant = true);
-                all_events.stream().filter(s -> s.segsite_ID >= tract_start && s.segsite_ID <= tract_end).forEach(s -> s.isRecombinant = true);
-
-
-                // DEBUG
-//                System.out.println("Node_ID\ttract_start\ttract_end");
-                if (tract_start < 526 || tract_end < 526) {
-                    System.out.println(sample_ID + "\t" + tract_start + "\t" + tract_end);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        // DEBUG:  did the above work?
-        List<Homoplasy_Events> recombinant_sites = all_events.stream().filter(s -> s.isRecombinant == true).collect(Collectors.toList());
-        System.out.println("\n\n\ntot # recombinant segregating sites = " + recombinant_sites.size());
-        recombinant_sites.forEach(r -> System.out.println(r.physical_pos));
-
-
-
-        // return list of recombinant sites as a subset of all_events?
-    }*/
-
 
     /**
      * maybe have this method be a general characterization of the cfml recomb tract file?  eg how many samples show recomb?  how many tracts?  mean tracts/sample?
@@ -1045,15 +813,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * Outputs variables that helps to understand and debug the program
      */
     private void log_session_info() {
-        // TEST:  jansi library
-//        systemInstall();
-//        System.out.printf(ansi().render("%n%n@|bold,underline,white Homoplasy counting session log -----------%n|@").toString());
 
         // TEST:  picocli color library
         System.out.printf(Ansi.AUTO.string("%n%n@|yellow,bold,bg(222) Homoplasy counting session log -----------|@%n"));
-
-        // ORIGINAL OUTPUT CODE
-        //        System.out.printf("%n%nHomoplasy counting session log -----------%n");
 
         // log session start
         System.out.println("session start time:  " + session_start_time);
@@ -1066,93 +828,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
         System.out.println("EXTANT_NODES_ONLY = " + EXTANT_NODES_ONLY);
         System.out.println("tot_num_sample_cases = " + tot_num_sample_cases + "    tot_num_sample_controls = " + tot_num_sample_controls + "    sample size = " +
                 (tot_num_sample_cases + tot_num_sample_controls));
-//        ORIGINAL OUTPUT CODE
-//        System.out.printf("End log -------------%n%n");
-
-//        System.out.printf(ansi().bg(Color.valueOf("222")).render("@|white End log -------------%n%n|@").toString());
         System.out.printf(Ansi.AUTO.string("@|white,bg(213) End log -------------|@%n%n"));
-//        systemUninstall();
     }
-
-
-
-/*    //    private void test_piping_fs_version() {
-    private void test_p_to_p_version() {
-//        ProcessBuilder pb = new ProcessBuilder("echo", "What would Snowden do? . . .");
-        ProcessBuilder pb = new ProcessBuilder("Rscript", "--vanilla", "--verbose", "piping_test.R");
-
-        try {
-            Process p = pb.start();
-
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));
-            bw.write("10,1,1,10");
-            bw.newLine();
-            bw.write("60,0,10,60");
-            bw.newLine();
-            bw.write("50,8,5,49");
-            bw.newLine();
-            bw.close();
-
-            int err_code = p.waitFor();
-            System.out.println("err_code = " + err_code);
-
-            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            String subprocess_output;
-            while ((subprocess_output = br.readLine()) != null) {
-                System.out.println("subprocess_output = " + subprocess_output);
-            }
-
-            System.out.println("\n\nEnd Test.\n\n");
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-    }*/
-
-
-
-/*
-    private void test_jsc() {
-//        int[][] test_site_homoplasy_counts = new int[2][2];
-        int[][] test_site_homoplasy_counts = {{0,10}, {10,0}};
-        ContingencyTable2x2 test_site_contingency_table = new ContingencyTable2x2(test_site_homoplasy_counts);
-        FishersExactTest test_statistic = new FishersExactTest(test_site_contingency_table);
-
-        System.out.println("test_site_contingency_table = " + test_site_contingency_table);
-        System.out.println("test_statistic.getTestStatistic() = " + test_statistic.getTestStatistic());
-        System.out.println("test_statistic.getOneTailedSP() = " + test_statistic.getOneTailedSP());
-        System.out.println("test_statistic.getSP() = " + test_statistic.getSP());
-        System.out.println("test_statistic.getOppositeTailProb() = " + test_statistic.getOppositeTailProb());
-
-    }
-*/
-
-
-    // NOTE:  no longer need an explicit constructor since moving to picocli library
-//    private Homoplasy_Counter(String[] args) {
-////        if (args.length != 6) {
-//        if (args.length != 5) {
-//
-//            System.out.println("\nUsage:  java Homoplasy_Counter . . . ");
-//            System.exit(-1);
-//        }
-//
-//        // TODO:  code in command-line switches
-////        newick_filename = args[0];
-//
-////        nexus_filename = args[0];
-////        ancestral_reconstruction_filename = args[1];
-//
-//        msa_fasta_filename = args[0];
-//        user_input_newick_filename = args[1];
-//
-////        pos_cross_ref_filename = args[2];
-//        pheno_filename = args[2];
-//        map_filename = args[3];
-////        recomb_tracts_filename = args[5];
-//        qvalues_option = Boolean.parseBoolean(args[4]);
-//    }
-
 
     /**
      * Build a tree data structure from a newick string.
@@ -1175,44 +852,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
             System.exit(-1);
         }
 
-//        System.out.println("phylogeny:  ");
-//        System.out.println("# of leaves = " + tree.getLeafNodes().size());
-//        int num_children_of_rootnode = tree.getRoot().getChildrenCount();
-//        System.out.println("num_children_of_rootnode = " + num_children_of_rootnode);
-//        System.out.println();
-
         return tree;
     }
-
-
-    /**
-     * This method works with cfml version.
-     *
-     * Build a tree data structure from newick grammar
-     */
-    /*private NewickTree build_tree() {
-        NewickTree tree = null;
-
-        try (BufferedReader br = new BufferedReader(new FileReader(newick_filename))) {
-            // read in a newick tree
-            NewickTreeTokenizer tokenizer = new NewickTreeTokenizer(br);
-            NewickTreeReader tree_reader = new NewickTreeReader(tokenizer);
-            tree = tree_reader.readTree();
-        } catch (IOException | DataFormatException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        // TODO:  refactor into log code
-        System.out.println("phylogeny:  ");
-        System.out.println("# of leaves = " + tree.getLeafNodes().size());
-//        int num_children_of_rootnode = tree.getRoot().getChildrenCount();
-//        System.out.println("num_children_of_rootnode = " + num_children_of_rootnode);
-        System.out.println();
-
-        return tree;
-    }*/
-
 
     /**
      * // TODO:  rewrite this in a functional programming style using Streams and BufferedReader.lines().  How does this compare to the imperative programming version?
@@ -1233,19 +874,11 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
             outputOptions.log.write(String.format("%nplink map file: # segregating sites = " + poss.size() + "%n"));
             outputOptions.log.flush();
-//        } catch (FileNotFoundException e) {
-//            e.printStackTrace();
-//            System.exit(-1);
         } catch (Exception e) {
             System.out.printf(Ansi.AUTO.string("@|red,bold %nAn error has occurred while reading the map file (this is likely due to a malformed map file). Please see the stack trace in the log file for more information on this error.%n|@"));
             e.printStackTrace();
             System.exit(-1);
         }
-//        catch (NumberFormatException nfe) {
-//            System.out.printf(Ansi.AUTO.string("@|red,bold %nAn error has occurred while parsing the map file (this is likely due to a malformed map file). Please see the stack trace in the log file for more information on this error.%n|@"));
-//            nfe.printStackTrace();
-//            System.exit(-1);
-//        }
 
         return poss.stream().mapToInt(i -> i).toArray();
     }
@@ -1256,60 +889,20 @@ public class Homoplasy_Counter implements Callable<Integer> {
      */
     private HashMap<String, char[]> build_seg_sites(String ancestral_fasta) {
         HashMap<String, char[]> seg_sites = new HashMap<>();  // key := node name, value := snps across all segsites
-//        ArrayList<String> node_names = new ArrayList<>();
-//        ArrayList<char[]> snp_sets = new ArrayList<>();
 
         try {
             int num_segsites_detected = -1;
-//            int num_seqs = 0;
-
-    //        Fasta_Manager multi_fasta_file = new Fasta_Manager(anc_recon_dir + File.separator + "ancestral_sequences.fasta");
-//            Fasta_Manager multi_fasta_file = new Fasta_Manager(outputOptions.anc_recon_dir + File.separator + "ancestral_sequences.fasta");
             Fasta_Manager multi_fasta_file = new Fasta_Manager(ancestral_fasta);
             Fasta_Record curr_record;
             while ((curr_record = multi_fasta_file.next()) != null) {
                 String node_name = curr_record.getHeader();
                 char[] seq = curr_record.getSequence().toCharArray();
 
-                // TEST missing geno data
-//                if (node_name.equals("M230")) {
-//                    seq[1044 - 1] = 'N';  // spike this sample with a missing geno at segsite 1044 (the top hit in ref set).  Genotype for sample M230 at site 1044 is homoplasic.
-//                }
-//                if (node_name.equals("KZNXDR")) {
-//                    seq[1044 - 1] = 'N';  // spike this sample with a missing geno at segsite 1044 (the top hit in ref set).  Genotype for sample KZNXDR at site 1044 is homoplasic.
-//                }
-
                 seg_sites.put(node_name, seq);
 
                 num_segsites_detected = seq.length;  // TODO:  check to make sure every single fasta seq has the same # sites
-                // DEBUG
-    //            System.out.println(node_name + "\t" + seq.length);
-//                num_seqs++;
             }
 
-        /*// replace this section with code from my bioinformatics library to process fasta files: =======================================
-        try (BufferedReader br = new BufferedReader(new FileReader(ancestral_reconstruction_filename))) {
-            String currline;
-            while ((currline = br.readLine()) != null) {
-                if (currline.startsWith(">")) {
-                    String node_name = currline.substring(1).trim();
-                    node_names.add(node_name);
-                } else {
-                    char[] snps = currline.toCharArray();  // snps across all segsites for one sample/internal node
-                    snp_sets.add(snps);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        for (int i = 0; i < node_names.size(); i++) {
-            seg_sites.put(node_names.get(i), snp_sets.get(i));
-        }  // ===========================================================================================================================*/
-
-//            outputOptions.log.write(String.format("%n# samples detected from input genotype file: " + seg_sites.size() + "%n"));
-//                outputOptions.log.write(String.format("%ngenotype file: # samples = " + seg_sites.size() + ", # segregating sites in each sample = " + num_segsites_detected + "%n"));
                 outputOptions.log.write(String.format("%ngenotype file: # segregating sites in each sample = " + num_segsites_detected + "%n"));
                 outputOptions.log.flush();
         } catch (IOException e) {
@@ -1320,76 +913,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         return seg_sites;
     }
-
-
-    /**
-     * Read in .ML_sequence.fasta file.  Each fasta entry is a set of snps where the column represents the seg site
-     * TODO:  use my FastaManager or write a new one to properly process any kind of fasta file
-     *
-     * NOTES:
-     * - seg_sites[] is 0-based
-     *
-     * - this CFML output file contains only unique cols (this is an artifact of CFML, why they coded it this way is beyond me).
-     *   Nevertheless, the cols in this file do not map 1-to-1 to any of the other files (map, ped, fasta of seg sites, etc).
-     */
-    /*private HashMap<String, char[]> build_seg_sites() {
-        HashMap<String , char[]> seg_sites = new HashMap<>();  // key := node name, value := snps across all segsites in cfml format (i.e. only non-redundant sites are in the fasta file)
-        ArrayList<String> node_names = new ArrayList<>();
-        ArrayList<char[]> snp_sets = new ArrayList<>();
-
-        try (BufferedReader br = new BufferedReader(new FileReader(ancestral_reconstruction_filename))) {
-            String currline;
-            while ((currline = br.readLine()) != null) {
-                if (currline.startsWith(">")) {
-                    String node_name = currline.substring(1).trim();
-                    node_names.add(node_name);
-                } else {
-                    char[] snps = currline.toCharArray();
-                    snp_sets.add(snps);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        for (int i = 0; i < node_names.size(); i++) {
-            seg_sites.put(node_names.get(i), snp_sets.get(i));
-        }
-
-        return seg_sites;
-    }*/
-
-
-    /**
-     * Read in .position_cross_reference.txt.
-     *
-     * Values in segsite_indexes are 1-based according to CFML.
-     *
-     * This CFML file maps the CFML fasta file of ancestral reconstructions to other files that contain segsites (e.g. ped).
-     * It is this CFML file that maps 1-to-1 (col-to-col) to other segsite files.  As such, the # cols in this file equals the tot # segsites.
-     */
-    /*private int[] get_segsite_indexes() {
-        int[] segsite_indexes = null;
-
-        try (BufferedReader br = new BufferedReader(new FileReader(pos_cross_ref_filename))) {
-            String[] indexes_as_Strings = br.readLine().split(",");
-            segsite_indexes = new int[indexes_as_Strings.length];
-
-            for (int i = 0; i < segsite_indexes.length; i++) {
-                segsite_indexes[i] = Integer.parseInt(indexes_as_Strings[i]);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        // sanity check:  # indexes should equal # extant seg sites
-//        System.out.println("segsite_indexes.length = " + segsite_indexes.length + " (should equal # extant seg sites)");
-
-        return segsite_indexes;
-    }*/
-
 
     /**
      * Maps all snps of this seg site to the topology.
@@ -1419,7 +942,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         System.out.printf(Ansi.AUTO.string("@|fg(222) %nCounting all homoplasy events . . . |@"));
 
-//        int num_non_biallelic_sites = 0;
         int num_monomorphic_sites = 0;  // allele counts are specific to the sample population, and thus does not include the allele from the reference genome, e.g. monomorphic is not polymorphic in your sample pop.
         int num_bi_allelic_sites = 0;
         int num_tri_allelic_sites = 0;
@@ -1430,48 +952,18 @@ public class Homoplasy_Counter implements Callable<Integer> {
         List<NewickTreeNode> leaves = tree.getLeafNodes();
         HashSet<String> leaf_names = get_leaf_names(leaves);
 
-//        for (int i = 0; i < segsite_indexes.length; i++) {  // for (each seg site)
         for (int i = 0; i < physical_poss.length; i++) {  // for (each seg site)
             int segsite_ID = i + 1;  // this ID is 1-based, e.g. segsite_ID = 10 is the 10th segsite
             int p = physical_poss[i];
 
-//            int segsite_index = segsite_indexes[i] - 1;  // segsite_index is 0-based (while values in segsite_indexes[] from position_cross_references.txt are 1-based)
-
-            // NOTE:  below was for cfml version.  No longer checking for monomorphic sites for now, may have to add code if this arises again.
-            // workaround for monomorphic sites
-//            if (segsite_index == -1) {
-//                num_monomorphic_sites++;
-//                continue;
-//            }
-
-//            HashMap<String,Character> mapped_seg_site = map_seg_site_to_tree(seg_sites, segsite_index);
             HashMap<String, Character> mapped_seg_site = map_seg_site_to_tree(seg_sites, i);
-            // TODO:  rename method to map_ancestral_alleles_to_seg_site()?  rename mapped_seg_site to just seg_site?
-
-            /* NOTE:  Blocked this out to expand code to identify monomorphic, tri-allelic, quad-allelic polymorphic sites.  Instead of calling is_biallelic(), # of alleles is identified and returned in new method.
-            if (is_biallelic(leaves, mapped_seg_site)) {
-                Homoplasy_Events segsite_homoplasy_events = identify_homoplasy_events_for_seg_site(tree, mapped_seg_site, segsite_ID, p, leaf_names);
-                all_events.add(segsite_homoplasy_events);
-            } else {  // tri/quad-allelic site
-                num_non_biallelic_sites++;
-            }*/
 
             Map<Character, List<Character>> alleles = get_alleles(leaves, mapped_seg_site);
-//            switch (num_alleles_at_site(leaves, mapped_seg_site)) {
             switch (alleles.size()) {
                 case 2:  // bi-allelic site
                     num_bi_allelic_sites++;
                     Homoplasy_Events segsite_homoplasy_events = identify_homoplasy_events_for_seg_site(tree, mapped_seg_site, segsite_ID, p, alleles, leaves, leaf_names);
                     all_events.add(segsite_homoplasy_events);
-
-                    // TEST missing geno code at top hit site 1044 in ref set
-//                    if (p == 1473246) { // if (segsite 1044)
-//                        System.out.println("\n\nsegsite_homoplasy_events.physical_pos = " + segsite_homoplasy_events.physical_pos);
-//                        System.out.println("segsite_homoplasy_events.segsite_ID = " + segsite_homoplasy_events.segsite_ID);
-                        // these are the 9 homoplasic cases by sample name
-//                        System.out.println("segsite_homoplasy_events.allele2_MRCAs.keySet() = " + segsite_homoplasy_events.allele2_MRCAs.keySet());
-//                        System.exit(-1);
-//                    }
 
                     break;
                 case 1:  // monomorphic site
@@ -1494,7 +986,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             outputOptions.log.write(String.format("%n# monomorphic sites: " + num_monomorphic_sites));
             outputOptions.log.write(String.format("%n# tri-allelic sites: " + num_tri_allelic_sites));
             outputOptions.log.write(String.format("%n# quad-allelic sites: " + num_quad_allelic_sites + "%n"));
-//            outputOptions.log.write(String.format("%n# sites with more than four alleles detected: " + more_than_four_alleles_detected + "%n"));  // report only in debug file as a sanity check
             outputOptions.log.flush();
         } catch (IOException e) {
             System.out.printf(Ansi.AUTO.string("@|red,bold %nAn error has occurred while writing out to the log file.  Please see the stack trace in the log file for more information on this error.%n|@"));
@@ -1505,15 +996,12 @@ public class Homoplasy_Counter implements Callable<Integer> {
         if (DEBUG_MODE) {
             try {
                 outputOptions.debug.write("\ncount_all_homoplasy_events():\n");
-//                outputOptions.debug.write("num_non_biallelic_sites = " + num_non_biallelic_sites + "\n");
                 outputOptions.debug.write("# bi-allelic sites = " + num_bi_allelic_sites + "\n");
                 outputOptions.debug.write("# monomorphic sites = " + num_monomorphic_sites + "\n");
                 outputOptions.debug.write("# tri-allelic sites = " + num_tri_allelic_sites + "\n");
                 outputOptions.debug.write("# quad-allelic sites = " + num_quad_allelic_sites + "\n");
                 outputOptions.debug.write("sites with more than four alleles detected = " + more_than_four_alleles_detected + "\n");
                 outputOptions.debug.flush();
-//                System.out.println("num_non_biallelic_sites = " + num_non_biallelic_sites);
-//                System.out.println("num_monomorphic_sites = " + num_monomorphic_sites);
             } catch (IOException e) {
                 System.out.printf(Ansi.AUTO.string("@|red,bold %nAn error has occurred while writing to the debug file. Please see the stack trace in the log file for more information on this error.%n|@"));
                 e.printStackTrace();
@@ -1525,57 +1013,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         return all_events;
     }
-
-
-
-    /**
-     * THIS VERSION IS THE OLDER VERSION USED TO PROCESS CFML OUTPUT FILES.  THIS HAS NOW BEEN REPLACED BY THE METHOD OF THE SAME NAME WHICH NOW
-     * PROCESSES TREETIME'S OUTPUT FILES.
-     * <p>
-     * Process 1 seg site at a time (i.e. count homoplasy events for 1 seg site at a time).
-     */
-    /*private ArrayList<Homoplasy_Events> count_all_homoplasy_events(NewickTree tree, HashMap<String, char[]> seg_sites, int[] segsite_indexes, int[] physical_poss) {
-        int num_non_biallelic_sites = 0;
-        int num_monomorphic_sites = 0;
-        ArrayList<Homoplasy_Events> all_events = new ArrayList<>();
-
-        // get leaf names (this is a bit inelegant as it is not used until new Homoplasy_Events()).  This is the closest I can place the code to where it is needed without
-        // calling this code for each segsite (I only want to get the leaf names once for all sites).
-        HashSet<String> leaf_names = get_leaf_names(tree);
-
-        // TODO:  refactor all calls to get leaves such that it relies on this call here (leaves never change so there is no point calling the function for each segsite)
-        List leaves = tree.getLeafNodes();
-
-        for (int i = 0; i < segsite_indexes.length; i++) {  // for (each extant seg site)
-            int segsite_ID = i + 1;  // this ID is 1-based, e.g. segsite_ID = 10 is the 10th segsite
-            int p = physical_poss[i];
-
-            int segsite_index = segsite_indexes[i] - 1;  // segsite_index is 0-based (while values in segsite_indexes[] from position_cross_references.txt are 1-based)
-
-            // workaround for monomorphic sites
-            if (segsite_index == -1) {
-                num_monomorphic_sites++;
-                continue;
-            }
-
-            HashMap<String,Character> mapped_seg_site = map_seg_site_to_tree(seg_sites, segsite_index);
-
-            // TODO:  perhaps refactor elsewhere, quick do this now to get results
-            if (is_biallelic(leaves, mapped_seg_site, segsite_ID)) {
-                Homoplasy_Events segsite_homoplasy_events = identify_homoplasy_events_for_seg_site(tree, mapped_seg_site, segsite_ID, p, leaf_names);
-                all_events.add(segsite_homoplasy_events);
-            } else {  // tri/quad-allelic site
-                num_non_biallelic_sites++;
-            }
-        }
-
-        System.out.println("num_non_biallelic_sites = " + num_non_biallelic_sites);
-        System.out.println("num_monomorphic_sites = " + num_monomorphic_sites);
-
-        return all_events;
-    }*/
-
-
 
     private boolean is_biallelic(List<NewickTreeNode> leaves, HashMap<String, Character> mapped_seg_site) {
         boolean is_biallelic = false;
@@ -1591,9 +1028,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         } else {
             is_biallelic = false;
         }
-
-        // TODO:  check for non-ACGT chars
-
 
         return is_biallelic;
     }
@@ -1619,7 +1053,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
 
-
     private int num_alleles_at_site(List<NewickTreeNode> leaves, HashMap<String, Character> mapped_seg_site) {
 
         ArrayList<Character> all_genotypes_at_site = new ArrayList<>();
@@ -1633,7 +1066,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
 
-
     /**
      * Get the names (ie sample ID) of each leaf.
      *
@@ -1643,7 +1075,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     private HashSet<String> get_leaf_names(List<NewickTreeNode> leaves) {
         HashSet<String> leaf_names = new HashSet<>();
 
-//        List<NewickTreeNode> leaves = tree.getLeafNodes();
         leaves.forEach(leaf -> leaf_names.add(leaf.getId()));
 
         return leaf_names;
@@ -1664,39 +1095,23 @@ public class Homoplasy_Counter implements Callable<Integer> {
                                                                     Map<Character, List<Character>> alleles, List<NewickTreeNode> leaves, HashSet<String> leaf_names) {
         HashMap<String, HashSet<String>> allele1_MRCAs = new HashMap<>();  // key := node name of MRCA, value := members of this MRCA: HashSet<node names>
         HashMap<String, HashSet<String>> allele2_MRCAs = new HashMap<>();  // same as above
-//        HashMap<String,String> visited_nodes = new HashMap<>();  // key =: node name, value := node name of MRCA set
-
         // first, identify all the MRCAs for both alleles:
         NewickTreeNode root = tree.getRoot();
-//        List leaves = tree.getLeafNodes();
-
-        // deprecated:  this is where the a1 allele is assigned arbitrarily, let's add some code to figure out which allele is the major allele, then assign that to a1
-        // 2 lines commented out so that allele1 is now always the major allele:
-        //        NewickTreeNode first_leaf = (NewickTreeNode) leaves.get(0);  // arbitrarly pick the first leaf allele; likely the major allele
-        //        char allele1 = get_node_genotype(first_leaf, mapped_seg_site);
-//        char major_allele = identify_major_allele(leaves, mapped_seg_site, segsite_ID);
         HashMap<String, Character> major_minor_alleles = identify_major_minor_alleles(alleles);  // at this point, alleles must be biallelic
-//        char allele1 = major_allele;
         char allele1 = major_minor_alleles.get("a1");
 
         for (int i = 0; i < leaves.size(); i++) {
-//            NewickTreeNode leaf = (NewickTreeNode) leaves.get(i);
             NewickTreeNode leaf = leaves.get(i);
             ArrayList<NewickTreeNode> curr_path = new ArrayList<>();  // nodes visited starting from this leaf
             NewickTreeNode prev_node = leaf;
 
-//            curr_path.add(leaf);  // No longer using HashSet clade data structure
             // leaf -> root
             for (NewickTreeNode curr_node = leaf.getParent(); !curr_node.equals(root); curr_node = curr_node.getParent()) {  // TODO:  rewrite equals() to curr_node != root ?
-//                curr_path.add(curr_node);
 
                 if (is_MRCA_found(curr_node, prev_node, mapped_seg_site)) {
                     // prev_node is the MRCA
                     add_MRCA(prev_node, mapped_seg_site, allele1, allele1_MRCAs, allele2_MRCAs, curr_path);
                 }
-//                else {
-//                    curr_path.add(curr_node);  // only add non-MRCA nodes.  No longer using Hashset clade data structure
-//                }
 
                 prev_node = curr_node;
             }
@@ -1709,10 +1124,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
         remove_non_homoplasic_mutations(allele1_MRCAs);
         remove_non_homoplasic_mutations(allele2_MRCAs);
 
-//        return new Homoplasy_Events(allele1_MRCAs, allele2_MRCAs, segsite_ID, p, alleles, leaves);
         return new Homoplasy_Events(allele1_MRCAs, allele2_MRCAs, segsite_ID, p, major_minor_alleles, leaf_names);
     }
-
 
 
     /**
@@ -1729,8 +1142,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         char major_allele = 0;
         char minor_allele = 0;
-//        int major_allele_count = 0;
-//        int minor_allele_count = 0;
         Iterator<Map.Entry<Character, List<Character>>> it = alleles.entrySet().iterator();  // biallelic sites have exactly 2 Map entries, one for each allele
         Map.Entry<Character, List<Character>> arbitrary_a1 = it.next();
         Map.Entry<Character, List<Character>> arbitrary_a2 = it.next();
@@ -1740,16 +1151,12 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         if (arbitrary_a1_size >= arbitrary_a2_size) {  // for equal frequency alleles (a1 size == a2 size), arbitrary_a1 is picked as the major allele
             major_allele = arbitrary_a1.getKey();
-//            major_allele_count = arbitrary_a1_size;
 
             minor_allele = arbitrary_a2.getKey();
-//            minor_allele_count = arbitrary_a2_size;
         } else {
             major_allele = arbitrary_a2.getKey();
-//            major_allele_count = arbitrary_a2_size;
 
             minor_allele = arbitrary_a1.getKey();
-//            minor_allele_count = arbitrary_a1_size;
         }
 
         major_minor_alleles.put("a1", major_allele);
@@ -1757,7 +1164,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         return major_minor_alleles;
     }
-
 
 
     /**
@@ -1771,9 +1177,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * @return
      */
     private char identify_major_allele(List<NewickTreeNode> leaves, HashMap<String, Character> mapped_seg_site, int segsite_ID) {
-
-        // 2 sanity checks:  1)  there must be exactly l # of leaves, where l := # samples   2) there must be exactly 2 alleles at each site
-//        if (leaves.size() != )
 
         ArrayList<Character> all_alleles = new ArrayList<>();
 
@@ -1814,21 +1217,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             minor_allele_count = arbitrary_a1.getValue().size();
         }
 
-        // DIAGNOSTICS:
-//        NewickTreeNode first_leaf = (NewickTreeNode) leaves.get(0);  // arbitrarly pick the first leaf allele; likely the major allele
-//        char a1 = get_node_genotype(first_leaf, mapped_seg_site);  // this is what a1 is currently in my code
-
-//        if (a1 != major_allele) {
-//            System.out.println("picked wrong major allele");
-//        }
-
-//        System.out.println("segsite_ID = " + segsite_ID);
-//        System.out.println("a1 = " + a1);
-//        System.out.println("major_allele = " + major_allele + "\tmajor_allele_count = " + major_allele_count);
-//        System.out.println("minor_allele = " + minor_allele + "\tminor_allele_count = " + minor_allele_count);
-//        System.out.println("leaves.size() = " + leaves.size());
-//        System.out.println();
-
         return major_allele;
     }
 
@@ -1837,10 +1225,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * Return the genotype mapped to this node.
      */
     private char get_node_genotype(NewickTreeNode node, HashMap<String, Character> mapped_seg_site) {
-        // DEBUG
-//        if (!mapped_seg_site.containsKey(node.getId())) {  // INTERNAL NODE NAME USED HERE
-//            System.out.println("missing sample from input segsites fasta file (but present in leaves of input tree) = " + node.getId());
-//        }
 
         return mapped_seg_site.get(node.getId());
     }
@@ -1863,10 +1247,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
             is_MRCA_found = true;
         } // else these two genotypes are non-missing and equal (i.e. prev_node is not homoplasic)
 
-//        return curr_geno != prev_geno;
         return is_MRCA_found;
     }
-
 
 
     private void add_MRCA(NewickTreeNode MRCA_node, HashMap<String, Character> mapped_seg_site, char allele1, HashMap<String, HashSet<String>> allele1_MRCAs,
@@ -1882,21 +1264,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
 
-
     private void update_MRCAs(HashMap<String, HashSet<String>> MRCAs, NewickTreeNode MRCA_node, ArrayList<NewickTreeNode> node_path) {
         String MRCA_node_name = MRCA_node.getId();
-
-        /* HashSet clade is only used to draw out subclades of MRCA nodes, removing its use for now as this is bloat without providing utility beyond the drawing
-        if (!MRCAs.containsKey(MRCA_node_name)) {  // new MRCA to be added
-            HashSet<String> clade = new HashSet<>();
-            add_to_clade(clade, node_path);
-            MRCAs.put(MRCA_node_name, clade);
-        } else {  // add clade members to this MRCA
-            HashSet<String> clade = MRCAs.get(MRCA_node_name);
-
-            // add new nodes from node_path to this MRCA's clade.  Adding node names only.
-            add_to_clade(clade, node_path);
-        }*/
 
         if (!MRCAs.containsKey(MRCA_node_name)) {
             MRCAs.put(MRCA_node_name, null);
@@ -1926,38 +1295,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
     private HashMap<String, Character> get_alleles_for_site(char allele1, HashMap<String, Character> mapped_seg_site) {
         HashMap<String, Character> alleles = new HashMap<>();
 
-/*
-        // IMPERATIVE version
-        for (Character snp : mapped_seg_site.values()) {
-            if (snp == allele1) {  // can I use == operator here?
-                alleles.put("a1", snp);
-            } else {
-                alleles.put("a2", snp);
-            }
-        }
-*/
-
-        // FUNCTIONAL version 1
-        // is there a way to do this without explicit casting?  Why does the type not carry through the Stream?
-        // also likely a better way to do this without creating a new object (toArray()), i.e. maybe use a lambda to insert proper allele into HashMap?
-//        Character[] alleles_unordered = mapped_seg_site.values().stream().distinct().toArray();
-//        if (alleles_unordered[0] == allele1) {
-//            alleles.put("a1", allele1);
-//        } else {
-//            alleles.put("a2", alleles_unordered[0]);
-//        }
-//
-//         sanity check (length must equal 2 alleles)
-//        if (alleles_unordered.length != 2) {
-//            System.out.println("alleles_unordered.length = " + alleles_unordered.length);
-//        }
-
-
         // FUNCTIONAL version 2
         alleles.put("a1", allele1);
         alleles.put("a2", (Character) mapped_seg_site.values().stream().distinct().filter(x -> allele1 != x).toArray()[0]);
-
-        // TODO:  verify code is correct by printing out mapped_seg_site and allele1_MRCAs.keys()
 
         return alleles;
     }
@@ -1969,10 +1309,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      */
     private void remove_non_homoplasic_mutations(HashMap<String, HashSet<String>> MRCAs) {
         if (MRCAs.size() < 2) {
-//            for (Map.Entry<String, HashSet<String>>mapping : MRCAs.entrySet()) {
-//                MRCAs.remove(mapping.getKey());
-//            }
-
             MRCAs.clear();
         }
     }
@@ -2002,21 +1338,11 @@ public class Homoplasy_Counter implements Callable<Integer> {
             System.exit(-1);
         }
 
-        // Sanity check:
-//        System.out.println("phenos.size() = " + phenos.size());
-//        System.out.println("phenos = " + phenos);
-
-        // ORIGINAL 2 LINES THAT DO NOT WORK W FEATURE: MISSING PHENO DATA
-        // following only works if 0 := control and 1 := case
-        // int tot_num_cases = phenos.entrySet().stream().map(es -> Integer.parseInt(es.getValue())).mapToInt(i -> i).sum();
-        // int tot_num_controls = phenos.size() - tot_num_cases;
-
         // filter out missing phenotypes (eg "NA") before summation of ints, ie keep all pheno data matching a "0" or "1" (control or case)
         List<String> available_phenos = phenos.values().stream().filter(s -> s.equals("0") || s.equals("1")).collect(Collectors.toList());
         int tot_num_cases = available_phenos.stream().map(s -> Integer.parseInt(s)).mapToInt(i -> i).sum();
         int tot_num_controls = available_phenos.size() - tot_num_cases;
         int tot_num_missing_phenos = phenos.size() - available_phenos.size();
-//        System.out.println("tot_num_cases = " + tot_num_cases + "\ttot_num_controls = " + tot_num_controls);
 
         // set global variables
         tot_num_sample_cases = tot_num_cases;
@@ -2043,35 +1369,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * @param phenos
      */
     private void assoc(ArrayList<Homoplasy_Events> all_events, HashMap<String, String> phenos) {
-
-//        assoc_test_stat_fishers_exact(all_events, phenos);
-
-//        assoc_test_stat_phyC(all_events, phenos);
-
         assoc_test_stat_binomial_test(all_events, phenos);
     }
-
-
-//    /**
-//     * test stat #1:  fisher's exact
-//     * <p>
-//     * This association test statistic only operates on those sites where there are homoplasic mutations occurring in both alleles so that a 2x2 contingency table can be
-//     * constructed.
-//     *
-//     * @param all_events
-//     * @param phenos
-//     */
-//    private void assoc_test_stat_fishers_exact(ArrayList<Homoplasy_Events> all_events, HashMap<String, String> phenos) {
-//
-//        // use only "homoplasically segregating" sites
-//        ArrayList<Homoplasy_Events> homoplasically_segregating_sites = get_only_homoplasically_segregating_sites(all_events);
-//        ArrayList<Fishers_Exact_Statistic> test_statistics = fishers_exact(homoplasically_segregating_sites, phenos);
-//
-//        // qvalues
-//        QSet qset = qvalues(test_statistics);
-//        output_qvalues(homoplasically_segregating_sites, test_statistics, qset);
-//    }
-
 
     /**
      * test stat #2:  phyC
@@ -2085,12 +1384,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
     private void assoc_test_stat_phyC(ArrayList<Homoplasy_Events> all_events, HashMap<String, String> phenos) {
 
         // use only "homoplasically informative sites"
-//        int min_hcount = 6;
         ArrayList<Homoplasy_Events> homoplasically_informative_sites = subset_by_min_hcount(all_events, AlgoParams.min_hcount);
         phyC_Test_Statistic[] resampled_test_statistics = phyC(homoplasically_informative_sites, phenos);
-
-        // DEBUG
-        // output_point_estimates(homoplasically_informative_sites, resampled_test_statistics);
 
         // DIAGNOSTIC
         diagnostic_observed_case_control_ratio_homoplasic_mutations_only(homoplasically_informative_sites);
@@ -2098,7 +1393,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         // qvalues
         QSet[] qset_all_alleles = qvalues_phyC(homoplasically_informative_sites, resampled_test_statistics);
 
-        // output significance assessments (pointwise, qvalues, maxTs)
         output_significance_assessments(homoplasically_informative_sites, resampled_test_statistics, qset_all_alleles);
     }
 
@@ -2112,16 +1406,11 @@ public class Homoplasy_Counter implements Callable<Integer> {
     private void assoc_test_stat_binomial_test(ArrayList<Homoplasy_Events> all_events, HashMap<String, String> phenos) {
 
         // use only "homoplasically informative sites"
-//        int min_hcount = 0;
         ArrayList<Homoplasy_Events> homoplasically_informative_sites = subset_by_min_hcount(all_events, AlgoParams.min_hcount);
 
         Binomial_Test_Stat[] resampled_test_statistics = null;
         switch (R_SPACE_TYPE) {
             case ALL_MUTATIONS:
-                // RESAMPLING SPACE:  ALL MUTATIONS
-//                resampled_test_statistics = resample_all_mutations_binom_test(homoplasically_informative_sites, phenos);
-//                resampled_test_statistics = resample_all_mutations_binom_test_combined_nulldists(homoplasically_informative_sites, phenos);
-//                resampled_test_statistics = resample_all_mutations_binom_test_combined_nulldists_memoization(homoplasically_informative_sites, phenos);
                 resampled_test_statistics = resample_all_mutations_binom_test_combined_nulldists_memoization_concurrent(homoplasically_informative_sites, phenos);
                 break;
 
@@ -2131,20 +1420,12 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 break;
         }
 
-        // DIAGNOSTIC
-//        diagnostic_output_resampling_derived_pvalues_only(homoplasically_informative_sites, resampled_test_statistics);
-
-        // DIAGNOSTIC
-//        diagnostic_observed_case_control_ratio_homoplasic_mutations_only(homoplasically_informative_sites);
-
         if (qvalues_option) {
             // qvalues
             QSet[] qset_all_alleles = qvalues_binom(homoplasically_informative_sites, resampled_test_statistics);
 
-            // output significance assessments (pointwise, maxTs, qvalues)
             output_significance_assessments_binom(homoplasically_informative_sites, resampled_test_statistics, qset_all_alleles);
         } else {
-            // output significance assessments (pointwise, maxTs, qvalues)
             output_significance_assessments_binom(homoplasically_informative_sites, resampled_test_statistics);
         }
     }
@@ -2153,18 +1434,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     private void output_significance_assessments_binom(ArrayList<Homoplasy_Events> homoplasically_informative_sites, Binomial_Test_Stat[] resampled_test_statistics) {
 
         System.out.printf(Ansi.AUTO.string("@|fg(222) %nWriting results to file . . . |@"));
-
-        // print out 1 result row per seg site:  segsite ID, pos, a1, a2, a1 homoplasy count, a2 homoplasy count, pvalue, or, ci, qvalue, local fdr
-        // all_events and test_statistics should both be in the same order (i.e. ordered by segsite_ID)
-        // sanity check (both sizes must be equal)
-//        System.out.println("(# homoplasically informative sites) homoplasically_informative_sites.size() = " + homoplasically_informative_sites.size());
-//        System.out.println("resampled_test_statistics.length = " + resampled_test_statistics.length);
-
-//        System.out.println(Homoplasy_Events.COL_NAMES + "\t" + Binomial_Test_Stat.COL_NAMES);  // header row
-//
-//        for (int i = 0; i < homoplasically_informative_sites.size(); i++) {
-//            System.out.println(homoplasically_informative_sites.get(i) + "\t" + resampled_test_statistics[i]);
-//        }
 
         try {
             // .out file
@@ -2192,9 +1461,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             Arrays.parallelSort(rows, (a, b) -> {
                 return Double.compare(a.test_stat_for_one_site.familywise_pvalue_a2, b.test_stat_for_one_site.familywise_pvalue_a2);
             });
-
-            // this is elegant as well!  Loving the static method Comparator.comparing().
-//            Arrays.parallelSort(rows, Comparator.comparing(Row::get_maxT));
 
             // write out sorted a2 maxT
             for (Row row : rows) {
@@ -2245,10 +1511,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     private void spike_site(Homoplasy_Events spiked_site) {
         System.out.println("\nDIAGNOSTIC:  spke_site");
-
-        //        Homoplasy_Events spiked_site = homoplasically_informative_sites.stream().filter(s -> s.segsite_ID == segsite_ID).collect(Collectors.toList()).get(0);
-
-//        spiked_site.a2_count_extant_only = 12;  // include all internal nodes
         spiked_site.obs_counts[2] = 12;  // make the new internal nodes all cases in a2
     }
 
@@ -2280,11 +1542,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             Homoplasy_Events site = homoplasically_informative_sites.get(s);
             site.obs_counts = obs_homoplasy_counts.get(s);
 
-            // DIAGNOSTIC:  spike site:  to test internal nodes as hypothetically all cases
-//            if (site.segsite_ID == 581) {
-//                spike_site(site);
-//            }
-
             // calc and set observed binom test pvalues for each Binomial_Test_Stat obj
             resampled_test_statistics[s] = new Binomial_Test_Stat(site.a1_in_use, site.a2_in_use);
 
@@ -2305,26 +1562,10 @@ public class Homoplasy_Counter implements Callable<Integer> {
             }
         }
 
-        // DEBUG:  sanity check on EXTANT_NODES_ONLY code
-//        check_extant_nodes_only_code(homoplasically_informative_sites);
-
-        // construct both point-wise and family-wise null dists (resampling begins)
-//        int m = 1000000;  // # resamples/replicates/perms
-        // DEBUG
-//        System.out.println("m = " + m);
-
         // construct a separate familywise null dist for a1 (major) and a2 (minor)
         double[] maxT_nulldist_a1 = new double[m];
         double[] maxT_nulldist_a2 = new double[m];
 
-        // DIAGNOSTIC:  point-wise null dist by segsite_ID
-//        ArrayList<int[]> pointwise_nulldist = new ArrayList<>();  // both alleles
-//        int segsite_index = debug_get_index_by_segsite(75910, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(20829, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(1142, homoplasically_informative_sites);  // figure out index of this segsite
-
-        // DIAGNOSTIC:  resampled case & control counts (all sites).  To turn on, comment out a total of 3 lines below (same comment line)
-//        ArrayList<ArrayList<int[]>> all_resampled_homoplasy_counts = new ArrayList<>();  // each element represents 1 replicate across all informative sites
         Resampling_Space_Diagnostics r_space_diagnostics = new Resampling_Space_Diagnostics();
 
         ZonedDateTime start_of_resampling = ZonedDateTime.now();
@@ -2334,8 +1575,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             ArrayList<int[]> resampled_homoplasy_counts = count_homoplasies(homoplasically_informative_sites, phenos, r_space);
             ArrayList[] replicate = calc_binomial_test_stats(homoplasically_informative_sites, resampled_homoplasy_counts, resampled_test_statistics, binom_test, r_space);
 
-            // DIAGNOSTIC:  point-wise null dist by segsite_ID
-//            pointwise_nulldist.add(resampled_homoplasy_counts.get(segsite_index));
 
             // identify the replicate maxT for each allele
             ArrayList<Double> replicate_a1 = replicate[0];
@@ -2347,10 +1586,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             maxT_nulldist_a1[curr_rep] = replicate_maxT_a1;
             maxT_nulldist_a2[curr_rep] = replicate_maxT_a2;
 
-            // DIAGNOSTIC:  resampled case & control counts (all sites)
-//            if (curr_rep < 100000) {  // store only the first 100,000 replicates due to memory constraints
-//                all_resampled_homoplasy_counts.add(resampled_homoplasy_counts);
-//            }
             r_space_diagnostics.tally_current_replicate(resampled_homoplasy_counts);
 
             // progress
@@ -2362,19 +1597,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         calc_pointwise_estimate_binom(homoplasically_informative_sites, resampled_test_statistics, m);
         calc_familywise_estimates_binom(homoplasically_informative_sites, resampled_test_statistics, m, maxT_nulldist_a1, maxT_nulldist_a2);
 
-        // DIAGNOSTIC
-//        diagnostic_pointwise_resamplings(segsite_index, homoplasically_informative_sites, resampled_test_statistics, pointwise_nulldist);
-
-        // DIAGNOSTIC
-//        diagnostic_resampled_case_control_ratio_by_site(homoplasically_informative_sites, segsite_index, pointwise_nulldist);
-
-        // DIAGNOSTIC:  resampled case & control counts (all sites)
-//        diagnostic_resampled_pheno_counts(all_resampled_homoplasy_counts);
         r_space_diagnostics.output_resampled_pheno_counts();
-
-        // DIAGNOSTIC:
-//        double tail_cutoff = 0.007257167447129453;  // inclusive
-//        diagnostic_identify_sites_contributing_to_maxT_tail(homoplasically_informative_sites, resampled_test_statistics, maxT_nulldist_a1, maxT_nulldist_a2, tail_cutoff);
 
         return resampled_test_statistics;
     }
@@ -2409,14 +1632,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         for (int s = 0; s < homoplasically_informative_sites.size(); s++) { // for each site
             Homoplasy_Events curr_site = homoplasically_informative_sites.get(s);
 
-            // DEBUG:  checking maxT for only site 1044
-//            if (curr_site.segsite_ID != 1044) {
-//                continue;
-//            }
-            // since a1 maxT null dist cannot be empty, give it a dummy value
-//            binom_test_stats_a1.add(1d);
-
-
             Binomial_Test_Stat curr_test_stat = resampled_test_statistics[s];
 
             int[] curr_site_resampled_counts = resampled_homoplasy_counts.get(s);
@@ -2447,9 +1662,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 }
             }
         }
-
-        // TODO BINOM:  what sites contribute to the right-tail end of maxT null dists?
-        //  maybe create new data structures to hold the segsite_ID corresponding to each value in resampled binomial test pvalues, binom_test_stats_a2
 
         return new ArrayList[]{binom_test_stats_a1, binom_test_stats_a2};
     }
@@ -2505,7 +1717,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
             // if no pheno is available for this node (i.e. this is an internal node), simply continue without updating any counters
             if (phenos.containsKey(node_name)) {
-//                String pheno = phenos.get(node_name);
                 int pheno = r_space.next_pheno(allele_type);
 
                 if (pheno == 1) {  // case
@@ -2574,29 +1785,11 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         // DIAGNOSTIC
         diagnostic_observed_case_control_ratio_homoplasic_mutations_only(homoplasically_informative_sites);
-        // TEMPORARY:  just need the obs p_success values, don't resample as that takes too long
-//        System.exit(-1);
-
-        // DEBUG:  sanity check on EXTANT_NODES_ONLY code
-//        check_extant_nodes_only_code(homoplasically_informative_sites);
-
-        // construct both point-wise and family-wise null dists (resampling begins)
-//        int m = 1000000;  // # resamples/replicates/perms
-        // DEBUG
-//        System.out.println("m = " + m);
 
         // construct a separate familywise null dist for a1 (major) and a2 (minor)
         double[] maxT_nulldist_a1 = new double[m];
         double[] maxT_nulldist_a2 = new double[m];
 
-        // DIAGNOSTIC:  point-wise null dist by segsite_ID
-//        ArrayList<int[]> pointwise_nulldist = new ArrayList<>();  // both alleles
-//        int segsite_index = debug_get_index_by_segsite(75910, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(20829, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(1142, homoplasically_informative_sites);  // figure out index of this segsite
-
-        // DIAGNOSTIC:  resampled case & control counts
-//        ArrayList<ArrayList<int[]>> all_resampled_homoplasy_counts = new ArrayList<>();  // each element represents 1 replicate across all informative sites
         Resampling_Space_Diagnostics r_space_diagnostics = new Resampling_Space_Diagnostics();
 
         ZonedDateTime start_of_resampling = ZonedDateTime.now();
@@ -2605,15 +1798,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
             HashMap<String, String> permuted_phenos = permute_phenos(phenos);
             ArrayList<int[]> resampled_homoplasy_counts = count_homoplasies(homoplasically_informative_sites, permuted_phenos);
 
-            // DIAGNOSTIC:  output obs p_success for this replicate
-//            r_space_diagnostics.output_obs_p_success(resampled_homoplasy_counts);
 
-///*  TEMPORARY:  blocked out to quickly calc obs p_success for each repicate
             ArrayList[] replicate = calc_binomial_test_stats(homoplasically_informative_sites, resampled_homoplasy_counts, resampled_test_statistics, binom_test,
                     p_success_a1, p_success_a2);
-
-            // DIAGNOSTIC:  point-wise null dist by segsite_ID
-//            pointwise_nulldist.add(resampled_homoplasy_counts.get(segsite_index));
 
             // identify the replicate maxT for each allele
             ArrayList<Double> replicate_a1 = replicate[0];
@@ -2625,12 +1812,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
             maxT_nulldist_a1[curr_rep] = replicate_maxT_a1;
             maxT_nulldist_a2[curr_rep] = replicate_maxT_a2;
 
-            // DIAGNOSTIC:  resampled case & control counts (all sites)
-//            if (curr_rep < 100000) {  // store only the first 100,000 replicates due to memory constraints
-//                all_resampled_homoplasy_counts.add(resampled_homoplasy_counts);
-//            }
             r_space_diagnostics.tally_current_replicate(resampled_homoplasy_counts);
-//*/
 
             // progress
             if ((curr_rep % 50000) == 0) {
@@ -2638,20 +1820,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
             }
         }
 
-        //  TEMPORARY:  just output obs p_success for each replicate, avoid all other code
-//        System.exit(-1);
-
         calc_pointwise_estimate_binom(homoplasically_informative_sites, resampled_test_statistics, m);
         calc_familywise_estimates_binom(homoplasically_informative_sites, resampled_test_statistics, m, maxT_nulldist_a1, maxT_nulldist_a2);
 
-        // DIAGNOSTIC
-//        diagnostic_pointwise_resamplings(segsite_index, homoplasically_informative_sites, resampled_test_statistics, pointwise_nulldist);
-
-        // DIAGNOSTIC
-//        diagnostic_resampled_case_control_ratio_by_site(homoplasically_informative_sites, segsite_index, pointwise_nulldist);
-
-        // DIAGNOSTIC:  show resampled case & control counts
-//        diagnostic_resampled_pheno_counts(all_resampled_homoplasy_counts);
         r_space_diagnostics.output_resampled_pheno_counts();
 
         return resampled_test_statistics;
@@ -2714,30 +1885,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         // DIAGNOSTIC
         diagnostic_observed_case_control_ratio_homoplasic_mutations_only(homoplasically_informative_sites);
-        // TEMPORARY:  just need the obs p_success values, don't resample as that takes too long
-//        System.exit(-1);
-
-        // DEBUG:  sanity check on EXTANT_NODES_ONLY code
-//        check_extant_nodes_only_code(homoplasically_informative_sites);
-
-        // construct both point-wise and family-wise null dists (resampling begins)
-//        int m = 1000000;  // # resamples/replicates/perms
-        // DEBUG
-//        System.out.println("m = " + m);
-
-        // construct a separate familywise null dist for a1 (major) and a2 (minor)
-//        double[] maxT_nulldist_a1 = new double[m];
-//        double[] maxT_nulldist_a2 = new double[m];
         double[] maxT_nulldist_a1_a2_combined = new double[m];  // combined a1 and a2 family-wise null dist
 
-        // DIAGNOSTIC:  point-wise null dist by segsite_ID
-//        ArrayList<int[]> pointwise_nulldist = new ArrayList<>();  // both alleles
-//        int segsite_index = debug_get_index_by_segsite(75910, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(20829, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(1142, homoplasically_informative_sites);  // figure out index of this segsite
-
-        // DIAGNOSTIC:  resampled case & control counts
-//        ArrayList<ArrayList<int[]>> all_resampled_homoplasy_counts = new ArrayList<>();  // each element represents 1 replicate across all informative sites
         Resampling_Space_Diagnostics r_space_diagnostics = new Resampling_Space_Diagnostics();
 
         ZonedDateTime start_of_resampling = ZonedDateTime.now();
@@ -2746,25 +1895,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
             HashMap<String, String> permuted_phenos = permute_phenos(phenos);
             ArrayList<int[]> resampled_homoplasy_counts = count_homoplasies(homoplasically_informative_sites, permuted_phenos);
 
-            // DIAGNOSTIC:  output obs p_success for this replicate
-//            r_space_diagnostics.output_obs_p_success(resampled_homoplasy_counts);
-
-///*  TEMPORARY:  blocked out to quickly calc obs p_success for each repicate
             ArrayList[] replicate = calc_binomial_test_stats(homoplasically_informative_sites, resampled_homoplasy_counts, resampled_test_statistics, binom_test,
                     p_success_a1, p_success_a2);
 
-            // DIAGNOSTIC:  point-wise null dist by segsite_ID
-//            pointwise_nulldist.add(resampled_homoplasy_counts.get(segsite_index));
-
-            // identify the replicate maxT for each allele
-//            ArrayList<Double> replicate_a1 = replicate[0];
-//            ArrayList<Double> replicate_a2 = replicate[1];
-//            double replicate_maxT_a1 = replicate_a1.stream().mapToDouble(d -> d).min().getAsDouble();  // there should be no Double.NaNs in this collection
-//            double replicate_maxT_a2 = replicate_a2.stream().mapToDouble(d -> d).min().getAsDouble();
-//
-//            // allele-specific null dists (all maxT null dists should always be size m regardless of "maf" filter)
-//            maxT_nulldist_a1[curr_rep] = replicate_maxT_a1;
-//            maxT_nulldist_a2[curr_rep] = replicate_maxT_a2;
 
             // COMBINED a1 and a2 FAMILY-WISE NULLDIST VERSION:
             // first combine resampled pvalues from a1 and a2 into one full repicate of resampled pvalues
@@ -2775,12 +1908,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
             double replicate_maxT = replicate_a1_and_a2.stream().mapToDouble(d -> d).min().getAsDouble();  // there should be no Double.NaNs in this collection
             maxT_nulldist_a1_a2_combined[curr_rep] = replicate_maxT;
 
-            // DIAGNOSTIC:  resampled case & control counts (all sites)
-//            if (curr_rep < 100000) {  // store only the first 100,000 replicates due to memory constraints
-//                all_resampled_homoplasy_counts.add(resampled_homoplasy_counts);
-//            }
             r_space_diagnostics.tally_current_replicate(resampled_homoplasy_counts);
-//*/
 
             // progress
             if ((curr_rep % 50000) == 0) {
@@ -2790,23 +1918,10 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         // OPTIMIZATION
         summarize_redundant_binom_calls();
-//        System.exit(-1);
-
-        //  TEMPORARY:  just output obs p_success for each replicate, avoid all other code
-//        System.exit(-1);
 
         calc_pointwise_estimate_binom(homoplasically_informative_sites, resampled_test_statistics, m);
-//        calc_familywise_estimates_binom(homoplasically_informative_sites, resampled_test_statistics, m, maxT_nulldist_a1, maxT_nulldist_a2);
         calc_familywise_estimates_binom_combined_nulldists(homoplasically_informative_sites, resampled_test_statistics, m, maxT_nulldist_a1_a2_combined);
 
-        // DIAGNOSTIC
-//        diagnostic_pointwise_resamplings(segsite_index, homoplasically_informative_sites, resampled_test_statistics, pointwise_nulldist);
-
-        // DIAGNOSTIC
-//        diagnostic_resampled_case_control_ratio_by_site(homoplasically_informative_sites, segsite_index, pointwise_nulldist);
-
-        // DIAGNOSTIC:  show resampled case & control counts
-//        diagnostic_resampled_pheno_counts(all_resampled_homoplasy_counts);
         r_space_diagnostics.output_resampled_pheno_counts();
 
         return resampled_test_statistics;
@@ -2814,10 +1929,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
 
     private void summarize_redundant_binom_calls() {
-        // TODO:  print out total # calls, sum of all values for sanity check of total # calls, proportion unique calls, let program run till end
-        // TODO:  calc time spent making ALL binom calls
-        // TODO:  Tablesaw for histogram plot
-//        System.out.println("\n\n");
         System.out.printf("%n%nSummary of redundant binom calls:%n");
 
         // total # calls calculated in 2 ways as a sanity check:
@@ -2907,31 +2018,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         // DIAGNOSTIC
         diagnostic_observed_case_control_ratio_homoplasic_mutations_only(homoplasically_informative_sites);
-        // TEMPORARY:  just need the obs p_success values, don't resample as that takes too long
-//        System.exit(-1);
-
-        // DEBUG:  sanity check on EXTANT_NODES_ONLY code
-//        check_extant_nodes_only_code(homoplasically_informative_sites);
-
-        // construct both point-wise and family-wise null dists (resampling begins)
-//        int m = 1000000;  // # resamples/replicates/perms
-        // DEBUG
-//        System.out.println("m = " + m);
-
-        // construct a separate familywise null dist for a1 (major) and a2 (minor)
-//        double[] maxT_nulldist_a1 = new double[m];
-//        double[] maxT_nulldist_a2 = new double[m];
         double[] maxT_nulldist_a1_a2_combined = new double[m];  // combined a1 and a2 family-wise null dist
 
-        // DIAGNOSTIC:  point-wise null dist by segsite_ID
-//        ArrayList<int[]> pointwise_nulldist = new ArrayList<>();  // both alleles
-//        int segsite_index = debug_get_index_by_segsite(75910, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(20829, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(1142, homoplasically_informative_sites);  // figure out index of this segsite
-
         // START OF RESAMPLING ---------------------------------
-        // DIAGNOSTIC:  resampled case & control counts
-//        ArrayList<ArrayList<int[]>> all_resampled_homoplasy_counts = new ArrayList<>();  // each element represents 1 replicate across all informative sites
         Resampling_Space_Diagnostics r_space_diagnostics = new Resampling_Space_Diagnostics();
         HashMap<String, Double> resampled_pvalue_cache = new HashMap<>();  // cache to replace redundant binom calls
         ZonedDateTime start_of_resampling = ZonedDateTime.now();
@@ -2940,25 +2029,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
             HashMap<String, String> permuted_phenos = permute_phenos(phenos);
             ArrayList<int[]> resampled_homoplasy_counts = count_homoplasies(homoplasically_informative_sites, permuted_phenos);
 
-            // DIAGNOSTIC:  output obs p_success for this replicate
-//            r_space_diagnostics.output_obs_p_success(resampled_homoplasy_counts);
-
-///*  TEMPORARY:  blocked out to quickly calc obs p_success for each repicate
             ArrayList[] replicate = calc_binomial_test_stats_memoization(homoplasically_informative_sites, resampled_homoplasy_counts, resampled_test_statistics, binom_test,
                     p_success_a1, p_success_a2, resampled_pvalue_cache);
-
-            // DIAGNOSTIC:  point-wise null dist by segsite_ID
-//            pointwise_nulldist.add(resampled_homoplasy_counts.get(segsite_index));
-
-            // identify the replicate maxT for each allele
-//            ArrayList<Double> replicate_a1 = replicate[0];
-//            ArrayList<Double> replicate_a2 = replicate[1];
-//            double replicate_maxT_a1 = replicate_a1.stream().mapToDouble(d -> d).min().getAsDouble();  // there should be no Double.NaNs in this collection
-//            double replicate_maxT_a2 = replicate_a2.stream().mapToDouble(d -> d).min().getAsDouble();
-//
-//            // allele-specific null dists (all maxT null dists should always be size m regardless of "maf" filter)
-//            maxT_nulldist_a1[curr_rep] = replicate_maxT_a1;
-//            maxT_nulldist_a2[curr_rep] = replicate_maxT_a2;
 
             // COMBINED a1 and a2 FAMILY-WISE NULLDIST VERSION:
             // first combine resampled pvalues from a1 and a2 into one full repicate of resampled pvalues
@@ -2969,14 +2041,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
             double replicate_maxT = replicate_a1_and_a2.stream().mapToDouble(d -> d).min().getAsDouble();  // there should be no Double.NaNs in this collection
             maxT_nulldist_a1_a2_combined[curr_rep] = replicate_maxT;
 
-            // DIAGNOSTIC:  resampled case & control counts (all sites)
-//            if (curr_rep < 100000) {  // store only the first 100,000 replicates due to memory constraints
-//                all_resampled_homoplasy_counts.add(resampled_homoplasy_counts);
-//            }
             r_space_diagnostics.tally_current_replicate(resampled_homoplasy_counts);
-//*/
 
-            // progress
             if ((curr_rep % 50000) == 0) {
                 System.out.println("replicate: " + curr_rep + "     time elapsed since start of resampling: " + Duration.between(start_of_resampling, ZonedDateTime.now()));
             } else if (curr_rep == m - 1) { // last replicate
@@ -2985,25 +2051,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
             }
         }
 
-        // REDUNDANT BINOM CALLS
-//        summarize_redundant_binom_calls();
-//        System.exit(-1);
-
-        //  TEMPORARY:  just output obs p_success for each replicate, avoid all other code
-//        System.exit(-1);
-
         calc_pointwise_estimate_binom(homoplasically_informative_sites, resampled_test_statistics, m);
-//        calc_familywise_estimates_binom(homoplasically_informative_sites, resampled_test_statistics, m, maxT_nulldist_a1, maxT_nulldist_a2);
         calc_familywise_estimates_binom_combined_nulldists(homoplasically_informative_sites, resampled_test_statistics, m, maxT_nulldist_a1_a2_combined);
-
-        // DIAGNOSTIC
-//        diagnostic_pointwise_resamplings(segsite_index, homoplasically_informative_sites, resampled_test_statistics, pointwise_nulldist);
-
-        // DIAGNOSTIC
-//        diagnostic_resampled_case_control_ratio_by_site(homoplasically_informative_sites, segsite_index, pointwise_nulldist);
-
-        // DIAGNOSTIC:  show resampled case & control counts
-//        diagnostic_resampled_pheno_counts(all_resampled_homoplasy_counts);
         r_space_diagnostics.output_resampled_pheno_counts();
 
         return resampled_test_statistics;
@@ -3029,16 +2078,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     private Binomial_Test_Stat[] resample_all_mutations_binom_test_combined_nulldists_memoization_concurrent(ArrayList<Homoplasy_Events> homoplasically_informative_sites, HashMap<String, String> phenos) {
 
         BinomialTest binom_test = new BinomialTest();
-
-        // DEBUG
-//        double zero_counts = binom_test.binomialTest(0, 0, 0.5, TAIL_TYPE);
-//        double one_case = binom_test.binomialTest(1, 1, 0.5, TAIL_TYPE);
-//        double one_control = binom_test.binomialTest(1, 0, 0.5, TAIL_TYPE);
-//        System.out.println("zero_counts = " + zero_counts);
-//        System.out.println("one_case = " + one_case);
-//        System.out.println("one_control = " + one_control);
-//        System.exit(-1);
-
 
         // calc expected background p_success values:  currently just use the p_success|both alleles value for a1 and a2 as a close approximation
         double background_p_success_given_both_alleles = calc_background_p_success();
@@ -3077,8 +2116,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             diagnostic_observed_case_control_ratio_homoplasic_mutations_only(homoplasically_informative_sites);
         }
 
-//        concurrecy_test();
-//        System.exit(-1);
 
         // START OF RESAMPLING -----------------------------------
         System.out.printf(Ansi.AUTO.string("@|fg(85) %nStarting resampling . . . %n|@"));
@@ -3117,34 +2154,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
                                              maxT_nulldist_a1_a2_combined, r_space_diagnostics, resampled_pvalue_cache, start_of_resampling,
                                              binom_test, p_success_a1, p_success_a2, resampled_test_statistics));
 
-            /*// 1 complete resampling := 3 methods:
-            HashMap<String, String> permuted_phenos = permute_phenos(phenos);
-            ArrayList<int[]> resampled_homoplasy_counts = count_homoplasies(homoplasically_informative_sites, permuted_phenos);
-            ArrayList[] replicate = calc_binomial_test_stats_memoization(homoplasically_informative_sites, resampled_homoplasy_counts, resampled_test_statistics, binom_test,
-                                                                         p_success_a1, p_success_a2, resampled_pvalue_cache);
-            // COMBINED a1 and a2 FAMILY-WISE NULLDIST VERSION:
-            // first combine resampled pvalues from a1 and a2 into one full repicate of resampled pvalues
-            // NOTE:  I do it like this to keep more of the previous code the same, i.e. separate a1 and a2 null dists were coded first
-            replicate[0].addAll(replicate[1]);
-            ArrayList<Double> replicate_a1_and_a2 = replicate[0];
-            // identify the replicate maxT from pooled a1 and a2 resampled pvalues
-            double replicate_maxT = replicate_a1_and_a2.stream().mapToDouble(d -> d).min().getAsDouble();  // there should be no Double.NaNs in this collection
-            maxT_nulldist_a1_a2_combined[curr_rep] = replicate_maxT;
-
-            r_space_diagnostics.tally_current_replicate(resampled_homoplasy_counts);
-
-            // progress
-            if ((curr_rep % 50000) == 0) {
-                System.out.println("replicate: " + curr_rep + "     time elapsed since start of resampling: " + Duration.between(start_of_resampling, ZonedDateTime.now()));
-            } else if (curr_rep == m - 1) { // last replicate
-                System.out.println("replicate: " + curr_rep + "     time elapsed since start of resampling: " + Duration.between(start_of_resampling, ZonedDateTime.now()) +
-                        " <- end of resampling");
-            }*/
         }  // END OF RESAMPLING ----------------------------------
         try {
-//            System.out.println("count_down_latch.await() BEFORE call");
             count_down_latch.await();
-//            System.out.println("count_down_latch.await() AFTER call");  // are all the replicates complete when this call is reached?
         } catch (InterruptedException e) {
             System.out.printf(Ansi.AUTO.string("@|red,bold %nAn error has occurred while working with the count down latch for multi-threading.  Please see the stack trace in the log file for more information on this error.%n|@"));
             e.printStackTrace();
@@ -3181,26 +2193,14 @@ public class Homoplasy_Counter implements Callable<Integer> {
         System.out.printf("All replicates processed, thread pool is shutting down.  Status: " + get_thread_pool_status(thread_pool) + "%n");
         System.out.printf("Resampling complete.%n");
 
-        // REDUNDANT BINOM CALLS
-//        summarize_redundant_binom_calls();
-//        System.exit(-1);
         calc_pointwise_estimate_binom(homoplasically_informative_sites, resampled_test_statistics, m);
         calc_familywise_estimates_binom_combined_nulldists(homoplasically_informative_sites, resampled_test_statistics, m, maxT_nulldist_a1_a2_combined);
-        // DIAGNOSTIC
-//        diagnostic_pointwise_resamplings(segsite_index, homoplasically_informative_sites, resampled_test_statistics, pointwise_nulldist);
-
-        // DIAGNOSTIC
-//        diagnostic_resampled_case_control_ratio_by_site(homoplasically_informative_sites, segsite_index, pointwise_nulldist);
-
-        // DIAGNOSTIC:  show resampled case & control counts
-//        diagnostic_resampled_pheno_counts(all_resampled_homoplasy_counts);
         if (DEBUG_MODE) {
             r_space_diagnostics.output_resampled_pheno_counts();
         }
 
         return resampled_test_statistics;
     }
-
 
 
     private String get_thread_pool_status(ExecutorService thread_pool) {
@@ -3278,7 +2278,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                     }
                 }
 
-//            System.out.println("replicate_num = " + replicate_num);
                 count_down_latch.countDown();
             } catch (Exception e) {
                 System.out.printf(Ansi.AUTO.string("@|red,bold %nAn error has occurred in a thread during resampling.  Please see the stack trace in the log file for more information on this error.%n|@"));
@@ -3356,8 +2355,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 outputOptions.debug.write("\ncalc_background_p_success():\n");
                 outputOptions.debug.write("background_p_success_given_both_alleles = " + background_p_success_given_both_alleles + "\n");
                 outputOptions.debug.flush();
-//                System.out.println("p_success_a2 (used in all a2 binomial tests) = " + p_success_a2);
-//                System.out.println("p_success_a1 (used in all a1 binomial tests) = " + p_success_a1);
             } catch (IOException e) {
                 System.out.printf(Ansi.AUTO.string("@|red,bold %nAn error has occurred while writing out to the debug file.  Please see the stack trace in the log file for more information on this error.%n|@"));
                 e.printStackTrace();
@@ -3437,9 +2434,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 tot_obs_controls_a2 += site.obs_counts[3];
             }
 
-//        System.out.println("p_success_a1 = " + p_success_a1);
-//        System.out.println("p_success_a2 = " + p_success_a2);
-
             outputOptions.debug.write("tot_obs_cases_a1 = " + tot_obs_cases_a1 + "\n");
             outputOptions.debug.write("tot_obs_controls_a1 = " + tot_obs_controls_a1 + "\n");
             outputOptions.debug.write("tot_obs_cases_a2 = " + tot_obs_cases_a2 + "\n");
@@ -3495,8 +2489,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         // print out 1 result row per seg site:  segsite ID, pos, a1, a2, a1 homoplasy count, a2 homoplasy count, pvalue, or, ci, qvalue, local fdr
         // all_events and test_statistics should both be in the same order (i.e. ordered by segsite_ID)
-        // sanity check (both sizes must be equal)
-//        System.out.println("(# homoplasically informative sites) homoplasically_informative_sites.size() = " + homoplasically_informative_sites.size());
         System.out.println("resampled_test_statistics.length = " + resampled_test_statistics.length);
 
         ArrayList<String> qvalues_a1 = qset_all_alleles[0].qvalues;
@@ -3521,7 +2513,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         // print out 1 result row per seg site:  segsite ID, pos, a1, a2, a1 homoplasy count, a2 homoplasy count, pvalue, or, ci, qvalue, local fdr
         // all_events and test_statistics should both be in the same order (i.e. ordered by segsite_ID)
         // sanity check (both sizes must be equal)
-//        System.out.println("(# homoplasically informative sites) homoplasically_informative_sites.size() = " + homoplasically_informative_sites.size());
         System.out.println("resampled_test_statistics.length = " + resampled_test_statistics.length);
 
         ArrayList<String> qvalues_a1 = qset_all_alleles[0].qvalues;
@@ -3565,58 +2556,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         QSet qset_a1 = qvalues_R(pvalues_a1);
         QSet qset_a2 = qvalues_R(pvalues_a2);
 
-/*
-        // DEBUG:  is R code processing NaN values as NAs?
-        long num_NANs_in_pvalues_a1 = Arrays.stream(pvalues_a1).filter(p -> Double.isNaN(p)).count();
-        long num_NANs_in_pvalues_a2 = Arrays.stream(pvalues_a2).filter(p -> Double.isNaN(p)).count();
-        System.out.println("num_NANs_in_pvalues_a1 = " + num_NANs_in_pvalues_a1);
-        System.out.println("num_NANs_in_pvalues_a2 = " + num_NANs_in_pvalues_a2);
-        System.out.println("pvalues_a1.length = " + pvalues_a1.length);
-        System.out.println("qset_a1.qvalues.size() = " + qset_a1.qvalues.size());
-        System.out.println("qset_a1.local_fdrs.size() = " + qset_a1.local_fdrs.size());
-        System.out.println("pvalues_a2.length = " + pvalues_a2.length);
-        System.out.println("qset_a2.qvalues.size() = " + qset_a2.qvalues.size());
-        System.out.println("qset_a2.local_fdrs.size() = " + qset_a2.local_fdrs.size());
-        System.out.println(String.valueOf(Double.NaN));
-*/
-
-/*
-        // ALLELE-CENTRIC
-        ArrayList<Double> pvalues_a1 = new ArrayList<>();
-        ArrayList<Double> pvalues_a2 = new ArrayList<>();
-        for (int i = 0; i < homoplasically_informative_sites.size(); i++) {
-            Homoplasy_Events site = homoplasically_informative_sites.get(i);
-
-            if (site.a1_in_use) {
-                pvalues_a1.add(resampled_test_statistics[i].pointwise_pvalue_a1);
-            }
-
-            if (site.a2_in_use) {
-                pvalues_a2.add(resampled_test_statistics[i].pointwise_pvalue_a2);
-            }
-        }
-
-        // old site-centric code used double[] for pvalues, so here I'll continue with that (streams and auto-unboxing to the rescue) so I don't modify qvalues_R().
-        // However, coding qvalues_R(ArrayList pvalues) should be a minor modification.
-        QSet qset_a1 = qvalues_R(pvalues_a1.stream().mapToDouble(d -> d).toArray());
-        QSet qset_a2 = qvalues_R(pvalues_a2.stream().mapToDouble(d -> d).toArray());
-*/
-/*
-        // DEBUG:  sizes of pvalues should equal # informative alleles
-        System.out.println("pvalues_a1.size() = " + pvalues_a1.size());
-        System.out.println("pvalues_a2.size() = " + pvalues_a2.size());
-        System.out.println("tot # pvalues = " + (pvalues_a1.size() + pvalues_a2.size()));
-*//*
-
-
-        // DEBUG:  missing values problem
-        System.out.println("pvalues_a1.size() = " + pvalues_a1.size());
-        System.out.println("qset_a1.qvalues.size() = " + qset_a1.qvalues.size());
-        System.out.println("qset_a1.local_fdrs.size() = " + qset_a1.local_fdrs.size());
-        System.out.println("pvalues_a2.size() = " + pvalues_a2.size());
-        System.out.println("qset_a2.qvalues.size() = " + qset_a2.qvalues.size());
-        System.out.println("qset_a2.local_fdrs.size() = " + qset_a2.local_fdrs.size());
-*/
 
         return new QSet[]{qset_a1, qset_a2};
 
@@ -3639,59 +2578,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         QSet qset_a1 = qvalues_R(pvalues_a1);
         QSet qset_a2 = qvalues_R(pvalues_a2);
-
-/*
-        // DEBUG:  is R code processing NaN values as NAs?
-        long num_NANs_in_pvalues_a1 = Arrays.stream(pvalues_a1).filter(p -> Double.isNaN(p)).count();
-        long num_NANs_in_pvalues_a2 = Arrays.stream(pvalues_a2).filter(p -> Double.isNaN(p)).count();
-        System.out.println("num_NANs_in_pvalues_a1 = " + num_NANs_in_pvalues_a1);
-        System.out.println("num_NANs_in_pvalues_a2 = " + num_NANs_in_pvalues_a2);
-        System.out.println("pvalues_a1.length = " + pvalues_a1.length);
-        System.out.println("qset_a1.qvalues.size() = " + qset_a1.qvalues.size());
-        System.out.println("qset_a1.local_fdrs.size() = " + qset_a1.local_fdrs.size());
-        System.out.println("pvalues_a2.length = " + pvalues_a2.length);
-        System.out.println("qset_a2.qvalues.size() = " + qset_a2.qvalues.size());
-        System.out.println("qset_a2.local_fdrs.size() = " + qset_a2.local_fdrs.size());
-        System.out.println(String.valueOf(Double.NaN));
-*/
-
-/*
-        // ALLELE-CENTRIC
-        ArrayList<Double> pvalues_a1 = new ArrayList<>();
-        ArrayList<Double> pvalues_a2 = new ArrayList<>();
-        for (int i = 0; i < homoplasically_informative_sites.size(); i++) {
-            Homoplasy_Events site = homoplasically_informative_sites.get(i);
-
-            if (site.a1_in_use) {
-                pvalues_a1.add(resampled_test_statistics[i].pointwise_pvalue_a1);
-            }
-
-            if (site.a2_in_use) {
-                pvalues_a2.add(resampled_test_statistics[i].pointwise_pvalue_a2);
-            }
-        }
-
-        // old site-centric code used double[] for pvalues, so here I'll continue with that (streams and auto-unboxing to the rescue) so I don't modify qvalues_R().
-        // However, coding qvalues_R(ArrayList pvalues) should be a minor modification.
-        QSet qset_a1 = qvalues_R(pvalues_a1.stream().mapToDouble(d -> d).toArray());
-        QSet qset_a2 = qvalues_R(pvalues_a2.stream().mapToDouble(d -> d).toArray());
-*/
-/*
-        // DEBUG:  sizes of pvalues should equal # informative alleles
-        System.out.println("pvalues_a1.size() = " + pvalues_a1.size());
-        System.out.println("pvalues_a2.size() = " + pvalues_a2.size());
-        System.out.println("tot # pvalues = " + (pvalues_a1.size() + pvalues_a2.size()));
-*//*
-
-
-        // DEBUG:  missing values problem
-        System.out.println("pvalues_a1.size() = " + pvalues_a1.size());
-        System.out.println("qset_a1.qvalues.size() = " + qset_a1.qvalues.size());
-        System.out.println("qset_a1.local_fdrs.size() = " + qset_a1.local_fdrs.size());
-        System.out.println("pvalues_a2.size() = " + pvalues_a2.size());
-        System.out.println("qset_a2.qvalues.size() = " + qset_a2.qvalues.size());
-        System.out.println("qset_a2.local_fdrs.size() = " + qset_a2.local_fdrs.size());
-*/
 
         return new QSet[]{qset_a1, qset_a2};
 
@@ -3759,12 +2645,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             if (phenos.containsKey(node_name)) {
                 String pheno = phenos.get(node_name);
 
-               /* if (pheno.equals("0")) {
-                    counts_for_allele[0]++;
-                } else if (pheno.equals("1")) {
-                    counts_for_allele[1]++;
-                }*/
-
                 if (pheno.equals("1")) {  // case
                     counts_for_allele[0]++;
                 } else if (pheno.equals("0")) {  // control
@@ -3816,12 +2696,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 a2_count = site.a2_count;
             }
 
-/*          old site-centric code
-            if (a1_count >= min_hcount || a2_count >= min_hcount) {
-                homoplasically_informative_sites.add(site);
-            }
-*/
-
             if (a1_count >= min_hcount) {
                 site.a1_in_use = true;
 
@@ -3835,38 +2709,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 // DEBUG
                 a2_informative_count++;
             }
-
-            /* TESTING: block commented out to test maxT null dist behavior if sites with a tot # homoplasic mutations >= 9 is removed except for site 1044 [9,0] top hit
-            if (site.segsite_ID == 1044) {  // top a2 hit [9,0] I want to keep
-                if (a1_count >= min_hcount) {
-                    site.a1_in_use = true;
-
-                    // DEBUG
-                    a1_informative_count++;
-                }
-
-                if (a2_count >= min_hcount) {
-                    site.a2_in_use = true;
-
-                    // DEBUG
-                    a2_informative_count++;
-                }
-            } else {  // else filter out all other sites where tot # homoplasic extant mutations is >= 9
-                if (a1_count >= min_hcount && a1_count < 9) {
-                    site.a1_in_use = true;
-
-                    // DEBUG
-                    a1_informative_count++;
-                }
-
-                if (a2_count >= min_hcount && a2_count < 9) {
-                    site.a2_in_use = true;
-
-                    // DEBUG
-                    a2_informative_count++;
-                }
-            }*/  // ********************* TESTING maxT null dist behavior *********************
-
 
             if (site.a1_in_use || site.a2_in_use) {
                 homoplasically_informative_sites.add(site);
@@ -3894,7 +2736,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 outputOptions.debug.write("a2_informative_count = " + a2_informative_count + "\n");
                 outputOptions.debug.write("tot # informative alleles = " + (a1_informative_count + a2_informative_count) + "\n");
                 outputOptions.debug.write("num_sites_both_alleles_informative = " + num_sites_both_alleles_informative + "\n");
-                //        homoplasically_informative_sites.forEach(i -> System.out.println(i));
 
                 // DEBUG:  duplicate segsite entries
                 List<Integer> segsite_IDs = homoplasically_informative_sites.stream().map(s -> s.segsite_ID).collect(Collectors.toList());
@@ -3941,37 +2782,15 @@ public class Homoplasy_Counter implements Callable<Integer> {
             resampled_test_statistics[s] = new phyC_Test_Statistic(site.a1_in_use, site.a2_in_use);  // initialize
         }
 
-        // DEBUG:  sanity check on EXTANT_NODES_ONLY code
-//        check_extant_nodes_only_code(homoplasically_informative_sites);
-
-        // construct both point-wise and family-wise null dists (resampling begins)
-//        int m = 100;  // # resamples/replicates/perms
-        // DEBUG
-//        System.out.println("m = " + m);
-
         // construct 1 familywise null dist per allele
         float[] maxT_nulldist_a1 = new float[m];
         float[] maxT_nulldist_a2 = new float[m];
-
-        // DEBUG:  point-wise null dist by segsite_ID
-//        ArrayList<int[]> pointwise_nulldist = new ArrayList<>();  // both alleles
-//        int segsite_index = debug_get_index_by_segsite(75910, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(20829, homoplasically_informative_sites);  // figure out index of this segsite
-//        int segsite_index = debug_get_index_by_segsite(1142, homoplasically_informative_sites);  // figure out index of this segsite
 
         for (int curr_rep = 0; curr_rep < m; curr_rep++) {
             // 1 complete resampling := 3 methods:
             HashMap<String, String> permuted_phenos = permute_phenos(phenos);
             ArrayList<int[]> resampled_homoplasy_counts = count_homoplasies(homoplasically_informative_sites, permuted_phenos);
             phyC_test_stat(homoplasically_informative_sites, obs_homoplasy_counts, resampled_homoplasy_counts, resampled_test_statistics);
-
-            // DEBUG:  point-wise null dist by segsite_ID
-//            pointwise_nulldist.add(resampled_homoplasy_counts.get(segsite_index));
-
-            // progress
-//            if ((curr_rep % 100) == 0) {
-//                System.out.println("replicate: " + curr_rep);
-//            }
 
             // get the replicate maxT for each allele
             float[] replicate_maxT = maxT(homoplasically_informative_sites, resampled_homoplasy_counts);
@@ -3983,12 +2802,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         calc_pointwise_estimate(homoplasically_informative_sites, resampled_test_statistics, m);
         calc_familywise_estimates(homoplasically_informative_sites, resampled_test_statistics, m, maxT_nulldist_a1, maxT_nulldist_a2, obs_homoplasy_counts);
-
-        // DIAGNOSTIC
-//        diagnostic_pointwise_resamplings(segsite_index, homoplasically_informative_sites, resampled_test_statistics, pointwise_nulldist);
-
-        // DIAGNOSTIC
-//        diagnostic_resampled_case_control_ratio_by_site(homoplasically_informative_sites, segsite_index, pointwise_nulldist);
 
         return resampled_test_statistics;
     }
@@ -4121,26 +2934,13 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 int tot_num_trials = curr_site_resampled_counts[0] + curr_site_resampled_counts[1];  // tot # homoplasic mutations at this site for a1
                 int num_cases = curr_site_resampled_counts[0];
 
-                /*// REDUNDANT CALLS ============
-                String k = tot_num_trials + "-" + num_cases;
-                if (binom_test_calls.containsKey(k)) {
-                    binom_test_calls.put(k, binom_test_calls.get(k) + 1);
-                } else {
-                    binom_test_calls.put(k, 1);
-                }
-                tot_num_calls_by_int_counter++;
-                // REDUNDANT CALLS =============*/
-
                 // String experiment
                 String k = new StringBuilder().append(tot_num_trials).append("_").append(num_cases).toString();
-//                String k = tot_num_trials + "-" + num_cases;  // the 2 params that make a binom call unique
                 double resampled_binom_test_pvalue = 0;
                 if (resampled_pvalues_cache.containsKey(k)) {  // retrieve pvalue from cache or make call to Apache match library
                     resampled_binom_test_pvalue = resampled_pvalues_cache.get(k);
                 } else {
-//                    Instant start_time = Instant.now();
                     resampled_binom_test_pvalue = binom_test.binomialTest(tot_num_trials, num_cases, p_success_a1, TAIL_TYPE);
-//                    tot_duration_of_all_binom_calls_to_math_library = Duration.between(start_time, Instant.now()).plus(tot_duration_of_all_binom_calls_to_math_library);
                     resampled_pvalues_cache.put(k, resampled_binom_test_pvalue);
                 }
                 binom_test_stats_a1.add(resampled_binom_test_pvalue);
@@ -4156,25 +2956,13 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 int tot_num_trials = curr_site_resampled_counts[2] + curr_site_resampled_counts[3];  // tot # homoplasic mutations at this site for a1
                 int num_cases = curr_site_resampled_counts[2];
 
-                /*// REDUNDANT CALLS ==========
-                String k = tot_num_trials + "-" + num_cases;
-                if (binom_test_calls.containsKey(k)) {
-                    binom_test_calls.put(k, binom_test_calls.get(k) + 1);
-                } else {
-                    binom_test_calls.put(k, 1);
-                }
-                tot_num_calls_by_int_counter++;
-                // REDUNDANT CALLS ============*/
 
                 String k = new StringBuilder().append(tot_num_trials).append("_").append(num_cases).toString();
-//                String k = tot_num_trials + "-" + num_cases;
                 double resampled_binom_test_pvalue = 0;
                 if (resampled_pvalues_cache.containsKey(k)) {
                     resampled_binom_test_pvalue = resampled_pvalues_cache.get(k);
                 } else {
-//                    Instant start_time = Instant.now();
                     resampled_binom_test_pvalue = binom_test.binomialTest(tot_num_trials, num_cases, p_success_a2, TAIL_TYPE);
-//                    tot_duration_of_all_binom_calls_to_math_library = Duration.between(start_time, Instant.now()).plus(tot_duration_of_all_binom_calls_to_math_library);
                     resampled_pvalues_cache.put(k, resampled_binom_test_pvalue);
                 }
                 binom_test_stats_a2.add(resampled_binom_test_pvalue);
@@ -4227,26 +3015,13 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 int tot_num_trials = curr_site_resampled_counts[0] + curr_site_resampled_counts[1];  // tot # homoplasic mutations at this site for a1
                 int num_cases = curr_site_resampled_counts[0];
 
-                /*// REDUNDANT CALLS ============
-                String k = tot_num_trials + "-" + num_cases;
-                if (binom_test_calls.containsKey(k)) {
-                    binom_test_calls.put(k, binom_test_calls.get(k) + 1);
-                } else {
-                    binom_test_calls.put(k, 1);
-                }
-                tot_num_calls_by_int_counter++;
-                // REDUNDANT CALLS =============*/
-
                 // String experiment
                 String k = new StringBuilder().append(tot_num_trials).append("_").append(num_cases).toString();
-//                String k = tot_num_trials + "-" + num_cases;  // the 2 params that make a binom call unique
                 double resampled_binom_test_pvalue = 0;
                 if (resampled_pvalues_cache.containsKey(k)) {  // retrieve pvalue from cache or make call to Apache match library
                     resampled_binom_test_pvalue = resampled_pvalues_cache.get(k);
                 } else {
-//                    Instant start_time = Instant.now();
                     resampled_binom_test_pvalue = binom_test.binomialTest(tot_num_trials, num_cases, p_success_a1, TAIL_TYPE);
-//                    tot_duration_of_all_binom_calls_to_math_library = Duration.between(start_time, Instant.now()).plus(tot_duration_of_all_binom_calls_to_math_library);
                     resampled_pvalues_cache.put(k, resampled_binom_test_pvalue);
                 }
                 binom_test_stats_a1.add(resampled_binom_test_pvalue);
@@ -4262,25 +3037,12 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 int tot_num_trials = curr_site_resampled_counts[2] + curr_site_resampled_counts[3];  // tot # homoplasic mutations at this site for a1
                 int num_cases = curr_site_resampled_counts[2];
 
-                /*// REDUNDANT CALLS ==========
-                String k = tot_num_trials + "-" + num_cases;
-                if (binom_test_calls.containsKey(k)) {
-                    binom_test_calls.put(k, binom_test_calls.get(k) + 1);
-                } else {
-                    binom_test_calls.put(k, 1);
-                }
-                tot_num_calls_by_int_counter++;
-                // REDUNDANT CALLS ============*/
-
                 String k = new StringBuilder().append(tot_num_trials).append("_").append(num_cases).toString();
-//                String k = tot_num_trials + "-" + num_cases;
                 double resampled_binom_test_pvalue = 0;
                 if (resampled_pvalues_cache.containsKey(k)) {
                     resampled_binom_test_pvalue = resampled_pvalues_cache.get(k);
                 } else {
-//                    Instant start_time = Instant.now();
                     resampled_binom_test_pvalue = binom_test.binomialTest(tot_num_trials, num_cases, p_success_a2, TAIL_TYPE);
-//                    tot_duration_of_all_binom_calls_to_math_library = Duration.between(start_time, Instant.now()).plus(tot_duration_of_all_binom_calls_to_math_library);
                     resampled_pvalues_cache.put(k, resampled_binom_test_pvalue);
                 }
                 binom_test_stats_a2.add(resampled_binom_test_pvalue);
@@ -4422,38 +3184,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         System.out.println("dn_maxTs for maxT nulldist a1: " + Arrays.toString(maxT_nulldist_a1));
         System.out.println("dn_maxTs for maxT nulldist a2: " + Arrays.toString(maxT_nulldist_a2));
 
-/*      old site-centric code:
-        // for each site's alleles, calc r familywise
-        for (int curr_site = 0; curr_site < resampled_test_statistics.length; curr_site++) {
-            int[] obs_site_counts = obs_homoplasy_counts.get(curr_site);
-
-            float[] obs_dn = dn(obs_site_counts);
-            float obs_dn_a1 = obs_dn[0];
-            float obs_dn_a2 = obs_dn[1];
-
-            // DEBUG:  obs values
-//            System.out.println("obs_site_counts = " + Arrays.toString(obs_site_counts));
-//            System.out.println("obs_dn[] = " + Arrays.toString(obs_dn));
-
-            DoubleStream ds_a1 = IntStream.range(0, maxT_nulldist_a1.length)
-                    .mapToDouble(i -> maxT_nulldist_a1[i]);
-            DoubleStream ds_a2 = IntStream.range(0, maxT_nulldist_a2.length)
-                    .mapToDouble(i -> maxT_nulldist_a2[i]);
-            long r_maxT_a1 = ds_a1.filter(dn_maxT -> dn_maxT >= obs_dn_a1).count();
-            long r_maxT_a2 = ds_a2.filter(dn_maxT -> dn_maxT >= obs_dn_a2).count();
-
-            double familywise_pvalue_a1 = ((double)r_maxT_a1 + 1) / ((double)m + 1);
-            double familywise_pvalue_a2 = ((double)r_maxT_a2 + 1) / ((double)m + 1);
-
-            resampled_test_statistics[curr_site].obs_dn_a1 = obs_dn_a1;
-            resampled_test_statistics[curr_site].obs_dn_a2 = obs_dn_a2;
-            resampled_test_statistics[curr_site].r_maxT_a1 = Math.toIntExact(r_maxT_a1);  // TODO:  catch ArithmeticException to output a cleaner explanation of overflow?
-            resampled_test_statistics[curr_site].r_maxT_a2 = Math.toIntExact(r_maxT_a2);
-            resampled_test_statistics[curr_site].familywise_pvalue_a1 = familywise_pvalue_a1;
-            resampled_test_statistics[curr_site].familywise_pvalue_a2 = familywise_pvalue_a2;
-        }
-*/
-
         // for each site, calc resampling-based FWER
         for (int i = 0; i < homoplasically_informative_sites.size(); i++) {
             Homoplasy_Events site = homoplasically_informative_sites.get(i);
@@ -4506,38 +3236,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         System.out.println("binom pvalue maxTs for maxT nulldist a1: " + Arrays.toString(maxT_nulldist_a1));
         System.out.println("binom pvalue maxTs for maxT nulldist a2: " + Arrays.toString(maxT_nulldist_a2));
 
-/*      old site-centric code:
-        // for each site's alleles, calc r familywise
-        for (int curr_site = 0; curr_site < resampled_test_statistics.length; curr_site++) {
-            int[] obs_site_counts = obs_homoplasy_counts.get(curr_site);
-
-            float[] obs_dn = dn(obs_site_counts);
-            float obs_dn_a1 = obs_dn[0];
-            float obs_dn_a2 = obs_dn[1];
-
-            // DEBUG:  obs values
-//            System.out.println("obs_site_counts = " + Arrays.toString(obs_site_counts));
-//            System.out.println("obs_dn[] = " + Arrays.toString(obs_dn));
-
-            DoubleStream ds_a1 = IntStream.range(0, maxT_nulldist_a1.length)
-                    .mapToDouble(i -> maxT_nulldist_a1[i]);
-            DoubleStream ds_a2 = IntStream.range(0, maxT_nulldist_a2.length)
-                    .mapToDouble(i -> maxT_nulldist_a2[i]);
-            long r_maxT_a1 = ds_a1.filter(dn_maxT -> dn_maxT >= obs_dn_a1).count();
-            long r_maxT_a2 = ds_a2.filter(dn_maxT -> dn_maxT >= obs_dn_a2).count();
-
-            double familywise_pvalue_a1 = ((double)r_maxT_a1 + 1) / ((double)m + 1);
-            double familywise_pvalue_a2 = ((double)r_maxT_a2 + 1) / ((double)m + 1);
-
-            resampled_test_statistics[curr_site].obs_dn_a1 = obs_dn_a1;
-            resampled_test_statistics[curr_site].obs_dn_a2 = obs_dn_a2;
-            resampled_test_statistics[curr_site].r_maxT_a1 = Math.toIntExact(r_maxT_a1);  // TODO:  catch ArithmeticException to output a cleaner explanation of overflow?
-            resampled_test_statistics[curr_site].r_maxT_a2 = Math.toIntExact(r_maxT_a2);
-            resampled_test_statistics[curr_site].familywise_pvalue_a1 = familywise_pvalue_a1;
-            resampled_test_statistics[curr_site].familywise_pvalue_a2 = familywise_pvalue_a2;
-        }
-*/
-
         // for each site, calc resampling-based FWER
         for (int s = 0; s < homoplasically_informative_sites.size(); s++) {
             Homoplasy_Events site = homoplasically_informative_sites.get(s);
@@ -4547,9 +3245,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
             if (site.a1_in_use) {
                 DoubleStream ds_a1 = Arrays.stream(maxT_nulldist_a1);
 
-                // TODO BINOM:  test idea that point estimates capture an important distributional shift that the obs does not
                 long r_maxT_a1 = ds_a1.filter(maxT -> maxT <= test_stat.obs_binom_pvalue_a1).count();
-//                long r_maxT_a1 = ds_a1.filter(maxT -> maxT <= test_stat.pointwise_pvalue_a1).count();
 
                 double familywise_pvalue_a1 = ((double) r_maxT_a1 + 1) / ((double) m + 1);
                 resampled_test_statistics[s].r_maxT_a1 = Math.toIntExact(r_maxT_a1);
@@ -4559,9 +3255,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
             if (site.a2_in_use) {
                 DoubleStream ds_a2 = Arrays.stream(maxT_nulldist_a2);
 
-                // TODO BINOM:  test idea
                 long r_maxT_a2 = ds_a2.filter(maxT -> maxT <= test_stat.obs_binom_pvalue_a2).count();
-//                long r_maxT_a2 = ds_a2.filter(maxT -> maxT <= test_stat.pointwise_pvalue_a2).count();
 
                 double familywise_pvalue_a2 = ((double) r_maxT_a2 + 1) / ((double) m + 1);
                 resampled_test_statistics[s].r_maxT_a2 = Math.toIntExact(r_maxT_a2);
@@ -4578,17 +3272,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         System.out.printf(Ansi.AUTO.string("@|fg(123) Calculating family-wise estimates . . . |@"));
 
-        // this is only needed for diagnostics
-        // sort all maxT null dists
-//        Arrays.parallelSort(maxT_nulldist_a1);
-//        Arrays.parallelSort(maxT_nulldist_a2);
         Arrays.parallelSort(maxT_nulldist_a1_a2_combined);
 
-        // DEBUG
-//        System.out.println("maxT_nulldist_a1.length = " + maxT_nulldist_a1.length);
-//        System.out.println("maxT_nulldist_a2.length = " + maxT_nulldist_a2.length);
-//        System.out.println("binom pvalue maxTs for maxT nulldist a1: " + Arrays.toString(maxT_nulldist_a1));
-//        System.out.println("binom pvalue maxTs for maxT nulldist a2: " + Arrays.toString(maxT_nulldist_a2));
         if (DEBUG_MODE) {
             try {
                 outputOptions.debug.write("\ncalc_familywise_estimates_binom_combined_nulldists():\n");
@@ -4600,40 +3285,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 System.exit(-1);
             }
         }
-//        System.out.println("binom pvalue maxTs for maxT nulldist a1 and a2 combined: " + Arrays.toString(maxT_nulldist_a1_a2_combined));
-
-
-/*      old site-centric code:
-        // for each site's alleles, calc r familywise
-        for (int curr_site = 0; curr_site < resampled_test_statistics.length; curr_site++) {
-            int[] obs_site_counts = obs_homoplasy_counts.get(curr_site);
-
-            float[] obs_dn = dn(obs_site_counts);
-            float obs_dn_a1 = obs_dn[0];
-            float obs_dn_a2 = obs_dn[1];
-
-            // DEBUG:  obs values
-//            System.out.println("obs_site_counts = " + Arrays.toString(obs_site_counts));
-//            System.out.println("obs_dn[] = " + Arrays.toString(obs_dn));
-
-            DoubleStream ds_a1 = IntStream.range(0, maxT_nulldist_a1.length)
-                    .mapToDouble(i -> maxT_nulldist_a1[i]);
-            DoubleStream ds_a2 = IntStream.range(0, maxT_nulldist_a2.length)
-                    .mapToDouble(i -> maxT_nulldist_a2[i]);
-            long r_maxT_a1 = ds_a1.filter(dn_maxT -> dn_maxT >= obs_dn_a1).count();
-            long r_maxT_a2 = ds_a2.filter(dn_maxT -> dn_maxT >= obs_dn_a2).count();
-
-            double familywise_pvalue_a1 = ((double)r_maxT_a1 + 1) / ((double)m + 1);
-            double familywise_pvalue_a2 = ((double)r_maxT_a2 + 1) / ((double)m + 1);
-
-            resampled_test_statistics[curr_site].obs_dn_a1 = obs_dn_a1;
-            resampled_test_statistics[curr_site].obs_dn_a2 = obs_dn_a2;
-            resampled_test_statistics[curr_site].r_maxT_a1 = Math.toIntExact(r_maxT_a1);  // TODO:  catch ArithmeticException to output a cleaner explanation of overflow?
-            resampled_test_statistics[curr_site].r_maxT_a2 = Math.toIntExact(r_maxT_a2);
-            resampled_test_statistics[curr_site].familywise_pvalue_a1 = familywise_pvalue_a1;
-            resampled_test_statistics[curr_site].familywise_pvalue_a2 = familywise_pvalue_a2;
-        }
-*/
 
         // for each site, calc resampling-based FWER
         for (int s = 0; s < homoplasically_informative_sites.size(); s++) {
@@ -4646,7 +3297,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
                 // TODO BINOM:  test idea that point estimates capture an important distributional shift that the obs does not
                 long r_maxT_a1 = ds_maxT_nulldist.filter(maxT -> maxT <= test_stat.obs_binom_pvalue_a1).count();
-//                long r_maxT_a1 = ds_a1.filter(maxT -> maxT <= test_stat.pointwise_pvalue_a1).count();
 
                 double familywise_pvalue_a1 = ((double) r_maxT_a1 + 1) / ((double) m + 1);
                 resampled_test_statistics[s].r_maxT_a1 = Math.toIntExact(r_maxT_a1);
@@ -4658,7 +3308,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
                 // TODO BINOM:  test idea
                 long r_maxT_a2 = ds_maxT_nulldist.filter(maxT -> maxT <= test_stat.obs_binom_pvalue_a2).count();
-//                long r_maxT_a2 = ds_a2.filter(maxT -> maxT <= test_stat.pointwise_pvalue_a2).count();
 
                 double familywise_pvalue_a2 = ((double) r_maxT_a2 + 1) / ((double) m + 1);
                 resampled_test_statistics[s].r_maxT_a2 = Math.toIntExact(r_maxT_a2);
@@ -4705,51 +3354,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         float max_a1 = -2.0f;  // as long as this initialized value is < min(range) of dn (range is -1 to 1)
         float max_a2 = -2.0f;
 
-/*
-        // DEBUG:  how many informative alleles are there?
-        int informative_a1_alleles = 0;
-        int informative_a2_alleles = 0;
-        int i = 0;
-*/
-
-/*      old site-centric code
-        for (int[] site_counts : resampled_homoplasy_counts) {
-            float[] curr_maxT = dn(site_counts);  // calc d normalized for both alleles
-            float curr_dn_a1 = curr_maxT[0];
-            float curr_dn_a2 = curr_maxT[1];
-
-            // DEBUG:  only use informative alleles (remember we're working with only extant nodes at this point).  Won't need this once I move to allele-centric code.
-            if ((site_counts[0] + site_counts[1]) >= 6) {
-                informative_a1_alleles++;
-
-                if (curr_dn_a1 > max_a1) {
-                    max_a1 = curr_dn_a1;
-                }
-            }
-
-            // DEBUG:  only use informative alleles (remember we're working with only extant nodes at this point).  Won't need this once I move to allele-centric code.
-            if ((site_counts[2] + site_counts[3]) >= 6) {
-                informative_a2_alleles++;
-
-                if (curr_dn_a2 > max_a2) {
-                    max_a2 = curr_dn_a2;
-                }
-            }
-
-            // DEBUG
-//            if (max_a1 == 1) {
-//                System.out.print("site = " + i);
-//                System.out.print("     max_a1 = " + max_a1);
-//                System.out.print("     resampled site_counts = " + Arrays.toString(site_counts));
-//                System.out.print("     curr_dn_a1 = " + curr_dn_a1);
-//                System.out.println("     curr_dn_a2 = " + curr_dn_a2);
-//            }
-
-//             DEBUG
-//            i++;
-        }
-*/
-
         for (int i = 0; i < homoplasically_informative_sites.size(); i++) {
             Homoplasy_Events site = homoplasically_informative_sites.get(i);
             int[] resampled_site_counts = resampled_homoplasy_counts.get(i);
@@ -4759,8 +3363,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             float curr_dn_a2 = curr_maxT[1];
 
             if (site.a1_in_use) {
-                // DEBUG
-//                informative_a1_alleles++;
 
                 if (curr_dn_a1 > max_a1) {
                     max_a1 = curr_dn_a1;
@@ -4768,25 +3370,12 @@ public class Homoplasy_Counter implements Callable<Integer> {
             }
 
             if (site.a2_in_use) {
-                // DEBUG
-//                informative_a2_alleles++;
 
                 if (curr_dn_a2 > max_a2) {
                     max_a2 = curr_dn_a2;
                 }
             }
         }
-
-/*
-        // DEBUG kill so I only see 1 replicate
-        System.out.println("informative_a1_alleles = " + informative_a1_alleles);
-        System.out.println("informative_a2_alleles = " + informative_a2_alleles);
-        int tot_informative_alleles = informative_a1_alleles + informative_a2_alleles;
-        System.out.println("tot # informative alleles = " + tot_informative_alleles);
-        System.out.println("max_a1 = " + max_a1);
-        System.out.println("max_a2 = " + max_a2);
-        System.exit(-1);
-*/
 
         return new float[]{max_a1, max_a2};
     }
@@ -4802,13 +3391,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * @param m
      */
     private void calc_pointwise_estimate(ArrayList<Homoplasy_Events> homoplasically_informative_sites, phyC_Test_Statistic[] resampled_test_statistics, int m) {
-
-/*      old site-centric code
-        for (phyC_Test_Statistic site : resampled_test_statistics) {
-            site.pointwise_pvalue_a1 = ((double)(site.r_a1 + 1)) / ((double)(m + 1));
-            site.pointwise_pvalue_a2 = ((double)(site.r_a2 + 1)) / ((double)(m + 1));
-        }
-*/
 
         for (int i = 0; i < homoplasically_informative_sites.size(); i++) {
             Homoplasy_Events site = homoplasically_informative_sites.get(i);
@@ -4828,13 +3410,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     private void calc_pointwise_estimate_binom(ArrayList<Homoplasy_Events> homoplasically_informative_sites, Binomial_Test_Stat[] resampled_test_statistics, int m) {
 
         System.out.printf(Ansi.AUTO.string("@|fg(213) %nCalculating point-wise estimates . . . |@"));
-
-/*      old site-centric code
-        for (phyC_Test_Statistic site : resampled_test_statistics) {
-            site.pointwise_pvalue_a1 = ((double)(site.r_a1 + 1)) / ((double)(m + 1));
-            site.pointwise_pvalue_a2 = ((double)(site.r_a2 + 1)) / ((double)(m + 1));
-        }
-*/
 
         for (int s = 0; s < homoplasically_informative_sites.size(); s++) {
             Homoplasy_Events site = homoplasically_informative_sites.get(s);
@@ -4870,11 +3445,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      */
     private void phyC_test_stat(ArrayList<Homoplasy_Events> homoplasically_informative_sites, ArrayList<int[]> obs_homoplasy_counts,
                                 ArrayList<int[]> resampled_homoplasy_counts, phyC_Test_Statistic[] resampled_test_statistics) {
-        // DEBUG they should all equal each other
-//        System.out.println("obs_homoplasy_counts.size() = " + obs_homoplasy_counts.size());
-//        System.out.println("resampled_homoplasy_counts.size() = " + resampled_homoplasy_counts.size());
-//        System.out.println("resampled_test_statistics.length = " + resampled_test_statistics.length);
-
         for (int s = 0; s < homoplasically_informative_sites.size(); s++) { // for each site
             Homoplasy_Events curr_site = homoplasically_informative_sites.get(s);
             phyC_Test_Statistic curr_test_stat = resampled_test_statistics[s];
@@ -4905,9 +3475,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      */
     private HashMap<String, String> permute_phenos(HashMap<String, String> phenos) {
 
-        // DEBUG
-//        System.out.println("phenos = " + phenos);
-
         // use entrySet() to guarantee the same pairing of keys and values (vs using values() and keySet())
         Set<Map.Entry<String, String>> pheno_mappings = phenos.entrySet();
 
@@ -4931,9 +3498,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         for (int i = 0; i < strain_ids.size(); i++) {
             permuted_phenos.put(strain_ids.get(i), pheno_labels.get(i));
         }
-
-        // DEBUG
-//        System.out.println("permuted_phenos = " + permuted_phenos);
 
         return permuted_phenos;
     }
@@ -4959,83 +3523,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         return homoplasically_segregating_sites;
     }
-
-
-
-/*
-    private ArrayList<Fishers_Exact_Statistic> assoc_fishers(ArrayList<Homoplasy_Events> all_events, HashMap<String,String> phenos) {
-
-        // Fisher's exact:
-        // only associate homoplasically non-monomorphic alleles (i.e. 0, 1, or 2 alleles may be homoplasically segregating)
-        // here we also define "derived" alleles relative to the MRCA (not some outgroup)
-        for (Homoplasy_Events segsite : all_events) {
-            if (segsite.get_a1_count() >= 2 && segsite.get_a2_count() >= 2) {
-
-            }
-        }
-
-        return null;
-    }
-*/
-
-
-    /**
-     * // This method is now DEPRECATED
-     *
-     * Only multi-hypo corrections likely to be used are q-values and maxT, but need to test ad-hoc "sub-family" idea which should go here
-     *
-     *
-     * Assess statistical significance of each segregating site.  Any statistical test can be used for this assessment.  Currently, using:
-     * - fisher's exact test (no multi-hypo correction, I could dervie q-values from distribution of fisher's exact p-values)
-     * - maxT resampling (FWER correction)
-     */
-/*
-    private void assess_significance(ArrayList<Homoplasy_Events> all_events, HashMap<String, String> phenos) {
-        ArrayList<Fishers_Exact_Statistic> test_statistics = fishers_exact(all_events, phenos);
-
-        // chisq
-        // maxT
-        // other methods to assess statistical significance at each segregating site
-
-        // pvalues
-        double[] pvalues = new double[test_statistics.size()];
-        for (int i = 0; i < pvalues.length; i++) {
-            pvalues[i] = test_statistics.get(i).getPvalue();
-        }
-
-         // DEBUG
-//        for (double p : pvalues) {
-//            System.out.println(p);
-//        }
-
-        // multi-hypo correction (for right now, always calculate qvalues, later may include option to choose a different method like a FWER)
-        QSet qset = qvalues_R(pvalues);
-
-        // results:  each row := 1 seg site
-        output_qvalues(all_events, test_statistics, qset);
-
-    }
-*/
-
-
-//    /**
-//     * Counts geno-pheno state pairs, and interfaces w R process to calculate fisher's exact (two-sided) for all sites.
-//     */
-//    private ArrayList<Fishers_Exact_Statistic> fishers_exact(ArrayList<Homoplasy_Events> homoplasically_segregating_sites, HashMap<String, String> phenos) {
-//
-//        // TODO:  refactor count_phenos() into 2 methods:
-//        /*
-//        for (homoplasically segregating sites) {
-//            count_homoplasies()
-//            build_2x2()
-//        }
-//         */
-//
-//        ArrayList<int[][]> contingency_tables = count_phenos(homoplasically_segregating_sites, phenos);
-//        ArrayList<Fishers_Exact_Statistic> test_statistics = fishers_exact_R(contingency_tables);
-//
-//        return test_statistics;
-//    }
 
 
     /**
@@ -5104,167 +3591,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
 
     /**
-     * Process-to-process communication (java <-> Rscript)
-     */
-    /* 
-    private ArrayList<Fishers_Exact_Statistic> fishers_exact_R(ArrayList<int[][]> contingency_tables) {
-        ArrayList<Fishers_Exact_Statistic> test_statistics = new ArrayList<>();  // TODO:  pull out to fishers_exact()?
-
-//        ProcessBuilder pb = new ProcessBuilder("Rscript", "--vanilla", "--verbose", "piping_test.R");
-        ProcessBuilder pb = new ProcessBuilder("Rscript", "--vanilla", "--verbose", R_dir + "fishers_exact.R");
-
-        // DEBUG
-//        pb.redirectErrorStream(true);  // combine stderr + stdout
-
-        try {
-            Process R_process = pb.start();
-
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(R_process.getOutputStream()));
-
-            // DEBUG
-//            BufferedWriter bw = new BufferedWriter(new FileWriter("contingency_tables_as_rows.txt"));
-
-
-            // 3 fake contingency tables for testing:
-            bw.write("10,10,10,10");
-            bw.newLine();
-            bw.write("60,0,10,60");
-            bw.newLine();
-            bw.write("50,8,5,49");
-            bw.newLine();
-
-// COMMENTED OUT to allow a few fake contingency tables to be tested.  Code below is to process all seg sites:
-
-            // pass to R process all contingency tables:  1 row representing 1 contingency table representing 1 segregating site
-//            int cap = 1000000;  // DEBUG
-//            int sites = 0;  // DEBUG
-            for (int[][] curr_table : contingency_tables) {
-                // TODO:  replace with StringBuilder?
-                // row := a1p1, a1p2, a2p1, a2p2
-                String table_as_row = String.valueOf(curr_table[0][0]) + "," +  // a1p1 := a1 case
-                        String.valueOf(curr_table[0][1]) + "," +  // a1p2 := a1 control
-                        String.valueOf(curr_table[1][0]) + "," +  // a2p1 := a2 case
-                        String.valueOf(curr_table[1][1]);         // a2p2 := a2 control
-
-                bw.write(table_as_row);
-                bw.newLine();
-
-                // DEBUG
-//                sites++;
-//                if (sites > cap) {
-//                    break;
-//                }
-            }
-
-            bw.close();
-
-            // DEBUG
-//            System.out.println("cap = " + cap);
-            System.out.println("contingency_tables.size() = " + contingency_tables.size());
-
-            // is waitFor() necessary?  Or go straight to blocking BufferedReader that waits on R process?  Ok, it's not necessary.
-//            int err_code = R_process.waitFor();
-//            boolean err_code = R_process.waitFor(1, TimeUnit.SECONDS);
-//            System.out.println("err_code = " + err_code + "\n\n");
-
-
-            // extracting results from R process:
-            System.out.println("extracting results from R process");
-            BufferedReader br = new BufferedReader(new InputStreamReader(R_process.getInputStream()));
-            // DEBUG
-            System.out.println("successfully opened input stream to R process");
-            System.out.println("br.read() = " + br.ready());
-            String R_process_output;
-            String currline;
-            StringBuilder sb = new StringBuilder(100000);  // set initial capacity to 100K chars to avoid fewer array expansions (expands at 2*current capacity)
-            while ((currline = br.readLine()) != null) {  // read in ALL R output
-//                System.out.println("R_process_output = " + R_process_output + "end_output");
-//                R_process_output += currline + " ";
-                sb.append(currline).append(" ");
-
-                // DEBUG
-//                System.out.println("currline = " + currline);
-            }
-            R_process_output = sb.toString();
-
-            // parse R output
-            String[] R_output = R_process_output.split(" ");
-
-            // DEBUG
-//            System.out.println("R_process_output = " + R_process_output);
-            System.out.println("R_output.length = " + R_output.length);
-//            for (String value : R_output) {
-//                System.out.println("value = " + value);
-//            }
-
-            // DEBUG
-//            int tot_num_sites = cap;  // for testing:  use 3 to test 3 contingency tables)
-            int tot_num_sites = contingency_tables.size();  // i.e. tot # seg sites
-
-            // inside R_output[]:
-            // first s elements are pvalues (where s = tot # sites)
-            // next s elements are ORs
-            // next 2*s elements are the pairs of CIs for the ORs
-            for (int pvalue_index = 0, or_index = tot_num_sites, ci_index = tot_num_sites * 2;
-                 pvalue_index < tot_num_sites;
-                 pvalue_index++, or_index++, ci_index += 2) {
-
-                // add raw pheno counts as a row (same row passed into R).  contingency_tables and all_events are both in the same segsite order.
-                int[][] curr_table = contingency_tables.get(pvalue_index);
-                String counts_as_row = String.valueOf(curr_table[0][0]) + "," +
-                        String.valueOf(curr_table[0][1]) + "," +
-                        String.valueOf(curr_table[1][0]) + "," +
-                        String.valueOf(curr_table[1][1]);
-
-                // parse out pvalues from R output
-                double p = Double.parseDouble(R_output[pvalue_index]);
-                String or = R_output[or_index];
-//                curr_stat.or_ci = R_output[j + tot_num_sites * 2] + "-" + R_output[j + tot_num_sites * 2 + 1];
-                String or_ci = R_output[ci_index] + "-" + R_output[ci_index + 1];
-
-                Fishers_Exact_Statistic curr_stat = new Fishers_Exact_Statistic(counts_as_row, p, or, or_ci);
-                test_statistics.add(curr_stat);
-            }
-
-//            System.out.println("\n\nEnd Test.\n\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        return test_statistics;
-    }
-
-/*    
-    private QSet qvalues(ArrayList<Fishers_Exact_Statistic> test_statistics) {
-
-        // get pvalues
-        double[] pvalues = new double[test_statistics.size()];
-        for (int i = 0; i < pvalues.length; i++) {
-            pvalues[i] = test_statistics.get(i).getPvalue();
-        }
-
-        QSet qset = qvalues_R(pvalues);
-
-//        output_qvalues(all_events, test_statistics, qset);
-
-        return qset;
-    } 
-*/
-
-
-    /**
      * This method interfaces with R process to calculate qvalue statistics for all sites.
      */
     private QSet qvalues_R(double[] pvalues) {
-        // DEBUG
-//        System.out.println("qvalues_R()-------------");
-//        System.out.println("pvalues.length = " + pvalues.length);
-//        for (double p : pvalues) {
-//            System.out.print(p + "  ");
-//        }
-
-
         QSet qset = null;
 
         ProcessBuilder pb = new ProcessBuilder("Rscript", "--vanilla", "--verbose", R_dir + "qvalues.R");
@@ -5286,27 +3615,12 @@ public class Homoplasy_Counter implements Callable<Integer> {
             String currline;
             StringBuilder sb = new StringBuilder(100000);  // set initial capacity to 100K chars to avoid fewer array expansions (expands at 2*current capacity)
             while ((currline = br.readLine()) != null) {  // read in ALL R output
-//                System.out.println("R_process_output = " + R_process_output + "end_output");
-//                R_process_output += currline + " ";
                 sb.append(currline).append(" ");
-
-                // DEBUG
-//                System.out.println("currline = " + currline);
             }
             R_process_output = sb.toString();
 
             // parse R output
             String[] R_output = R_process_output.split(" ");
-
-            // DEBUG
-//            System.out.println("R_process_output = " + R_process_output + "end");
-//            System.out.println("R_output.length = " + R_output.length);
-//            for (String value : R_output) {
-//                System.out.println("value = " + value);
-//            }
-
-            // DEBUG
-//            int tot_num_sites = cap;  // for testing:  use 3 to test 3 contingency tables)
 
             // inside R_output[]:
             // 1st element := pi0
@@ -5318,24 +3632,12 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
             int tot_num_sites = pvalues.length;
             for (int qvalue_index = 1, lfdr_index = tot_num_sites + 1; qvalue_index < tot_num_sites + 1; qvalue_index++, lfdr_index++) {
-
-                // DEBUG
-//                System.out.println("tot_num_sites = " + tot_num_sites);
-//                System.out.println("qvalue_index = " + qvalue_index);
-//                System.out.println("lfdr_index = " + lfdr_index);
-//                System.exit(-1);
-
-
                 String qvalue = R_output[qvalue_index];
                 String lfdr = R_output[lfdr_index];
 
                 qvalues.add(qvalue);
                 lfdrs.add(lfdr);
             }
-
-            // DEBUG
-//            System.out.println("qvalues.size() = " + qvalues.size());
-//            System.out.println("lfdrs.size() = " + lfdrs.size());
 
             // encapsulate all results into one QSet object
             qset = new QSet(pi_0, qvalues, lfdrs);
@@ -5356,16 +3658,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * @param qset
      */
     private void output_qvalues(ArrayList<Homoplasy_Events> all_events, ArrayList<Fishers_Exact_Statistic> test_statistics, QSet qset) {
-        /*
-        // look at .forEach() java 8 construct:  http://www.javaworld.com/article/2461744/java-language/java-language-iterating-over-collections-in-java-8.html
-        for (Fishers_Exact_Statistic curr_stat : test_statistics) {
-            System.out.println(curr_stat);
-        }
-
-        // so something like this:
-        test_statistics.forEach(curr_stat -> System.out.println(curr_stat));  // hmm but this is still only 1 data structure at a time?  although cleaner than above.
-        */
-
         // print out 1 result row per seg site:  segsite ID, pos, a1, a2, a1 homoplasy count, a2 homoplasy count, pvalue, or, ci, qvalue, local fdr
         // all_events and test_statistics should both be in the same order (i.e. ordered by segsite_ID)
         // sanity check (both sizes must be equal)
@@ -5386,8 +3678,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * Characterize various aspects of homoplasy events, ancestral reconstruction, etc.
      */
     private void characterize(ArrayList<Homoplasy_Events> all_events, NewickTree tree) {
-//        output_num_events_by_segsite(all_events);
-//        identify_segsites_w_back_mutations(all_events, tree);
         identify_internal_homoplasy_events(all_events, tree);
 
     }
@@ -5409,13 +3699,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * change simply because the root has no parent.
      */
     private void identify_segsites_w_back_mutations(ArrayList<Homoplasy_Events> all_events, NewickTree tree) {
-        // DEBUG
-//        System.out.println("all_events.size() = " + all_events.size());
-
         NewickTreeNode root = tree.getRoot();
         List leaves = tree.getLeafNodes();
 
-//        for (Homoplasy_Events segsite_events : all_events) {
         for (int site = 0; site < all_events.size(); site++) {  // each seg site has exactly 1 Homoplasy_Events object, i.e. all_events.size() == # seg sites
             int segsite_num = site + 1;  // make this 1-based
             Homoplasy_Events curr_site_events = all_events.get(site);
@@ -5468,14 +3754,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * All debug method calls are from here.
      */
     private void debug(ArrayList<Homoplasy_Events> all_events, HashMap<String, char[]> seg_sites, int[] segsite_indexes) {
-//        homoplaser.test_newick_parser(args);
-//        homoplaser.test_tree_methods(args);
-
-//        output_segsite_events_as_txt(all_events, 3);
-//        output_segsite_events_as_branch_colors(all_events, 3383);
-//        output_segsite_MRCAs_and_clades_as_branch_colors(all_events, 80715);
-
-//        output_segsite_alleles(all_events, seg_sites, segsite_indexes, 68362);
     }
 
 
@@ -5493,7 +3771,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * against the MRCAs I find visually by drawing the ancestrally reconstructed alleles using Build_Branch_Color_Annotation_Files.
      */
     private void output_segsite_events_as_branch_colors(ArrayList<Homoplasy_Events> all_events, int i) {
-//        Homoplasy_Events segsite_events = all_events.get(i - 1);  // now explicitly using the index into ArrayList of Homoplasy_Events so no longer need a minus 1
         Homoplasy_Events segsite_events = all_events.get(i);
 
         // DEBUG
@@ -5509,7 +3786,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
      * Build_Branch_Color_Annotation_File).
      */
     private void output_segsite_MRCAs_and_clades_as_branch_colors(ArrayList<Homoplasy_Events> all_events, int i) {
-//        Homoplasy_Events segsite_events = all_events.get(i - 1);  // now explicitly using the index into ArrayList of Homoplasy_Events so no longer need a minus 1
         Homoplasy_Events segsite_events = all_events.get(i);
 
         // DEBUG
@@ -5517,21 +3793,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
         segsite_events.output_events_and_their_clades_as_branch_colors();
     }
-
-
-    /**
-     * Simply shows all the alleles at this ith site (1-based).
-     *
-     * I'm using this method to compare the alleles I pull out here by using CFML files against the alleles
-     * I pull out from the map/ped world.  This check is necessary so that I make sure I am using the proper
-     * physical positions from the input map file (remember, for some asinine reason CFML uses an additional
-     * layer in the form of the position_cross_reference file to index into the ML_sequence.fasta file).
-     */
-    /*private void output_segsite_alleles(ArrayList<Homoplasy_Events> all_events, HashMap<String, char[]> seg_sites, int[] segsite_indexes, int i) {
-        int segsite_index = segsite_indexes[i - 1] - 1;  // segsite_index is 0-based (while values in segsite_indexes[] from position_cross_references.txt are 1-based)
-        HashMap<String, Character> mapped_snps = map_seg_site_to_tree(seg_sites, segsite_index);
-        mapped_snps.forEach((k, v) -> System.out.println(k + "\t" + v));
-    }*/
 
 
     /**
@@ -5555,8 +3816,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         private int physical_pos;  // currently relative to some refseq, but in the future I should explore reference-free identification of variants
         private int a1_count;  // # homoplasy events for allele1
         private int a2_count;
-        //        private int a1_count_internal;  // # of homoplasy events for allele1 that occurs on an internal node
-//        private int a2_count_internal;
         private int a1_count_extant_only = 0;
         private int a2_count_extant_only = 0;
         private int[] obs_counts;  // int[4] counts := a1p1, a1p2, a2p1, a2p2  (same as count_phenos())
@@ -5582,7 +3841,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             this.a1_count = allele1_MRCAs.size();
             this.a2_count = allele2_MRCAs.size();
 
-//            calc_num_extant_homoplasic_mutations(leaves);
             calc_num_extant_homoplasic_mutations(leaf_names);
         }
 
@@ -5614,32 +3872,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
                     a2_count_extant_only++;
                 }
             }
-
-/*          Option #2:  A slightly more efficient way compared to the exhaustive search below.
-
-            // for each a1 homoplasic mutation by node name
-            for (String homoplasic_mutation : allele1_MRCAs.keySet()) {
-                if (leaves.stream().map(leaf -> leaf.getId()).anyMatch(leaf_name -> homoplasic_mutation.equals(leaf_name))) {  // if (contains)
-                    a1_count_extant_only++;
-                }
-            }
-
-            // for each a2 homoplasic mutation by node name, is it also a leaf node?
-            for (String homoplasic_mutation : allele2_MRCAs.keySet()) {
-                if (leaves.stream().map(leaf -> leaf.getId()).anyMatch(leaf_name -> homoplasic_mutation.equals(leaf_name))) {
-                    a2_count_extant_only++;
-                }
-            }
-*/
-
-/*          Option #3:  Another way to do this, but not as efficient as using streams above because streams uses short-circuiting, ie not all leaves are looked at.
-            // for each leaf (i.e. iterates through all samples)
-            for (NewickTreeNode leaf : leaves) {
-                if (allele1_MRCAs.containsKey(leaf.getId())) {
-                    a1_count_extant_only++;
-                }
-            }
-*/
         }
 
 
@@ -5653,8 +3885,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             allele1_num_homoplasy_events = allele1_MRCAs.size();
             allele2_num_homoplasy_events = allele2_MRCAs.size();
 
-//        System.out.print("# homoplasy events (allele1) = " + allele1_num_homoplasy_events);
-//        System.out.println("\t# homoplasy events (allele2) = " + allele2_num_homoplasy_events);
             System.out.println(segsite_ID + ":" + "\t" + allele1_num_homoplasy_events + "\t" + allele2_num_homoplasy_events);
 
         }
@@ -5952,10 +4182,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
         private double p_success_a1;  // obs tot # a1 cases / tot # a1 homoplasic mutations
         private double p_success_a2;
 
-        // DEBUG:  how many elements of the permutation arrays are actually used?
-//        int a1_array_elements_used_count = 0;
-//        int a2_array_elements_used_count = 0;
-
 
         public Resampling_Space(ArrayList<int[]> obs_homoplasy_counts) {
             construct_permutation_arrays(obs_homoplasy_counts);
@@ -6010,9 +4236,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
             p_success_a1 = (double) tot_obs_a1_cases / (double) a1_permutation_array.size();
             p_success_a2 = (double) tot_obs_a2_cases / (double) a2_permutation_array.size();
 
-            // DEBUG:  use obs p_success or all_mutations p_success?
-//            p_success_a1 = 0.379;
-//            p_success_a2 = 0.379;
 
             // DEBUG
             System.out.println("\nDEBUG:  permutation arrays");
@@ -6040,29 +4263,11 @@ public class Homoplasy_Counter implements Callable<Integer> {
                     if (a1_iterator.hasNext()) {
                         pheno = a1_iterator.next();
 
-                        // DEBUG:
-//                        a1_array_elements_used_count++;
                     } else {  // else no more elements left to consume in permutation array (i.e.: start of new replicate)
-                        // DEBUG:  check how many elements used in the replicate
-//                        System.out.println("a1_array_elements_used_count = " + a1_array_elements_used_count);
-//                        a1_array_elements_used_count = 0;  // reset because new Iterator at start of new replicate
-//                        System.out.println("\na1_iterator.hasNext() = " + a1_iterator.hasNext());
-//                        System.out.println("shuffle array!");
-//                        Collections.shuffle(a1_permutation_array);
-//                        System.out.println("a1_iterator.hasNext() = " + a1_iterator.hasNext());
-//                        System.out.println("shuffle array!");
-//                        Collections.shuffle(a1_permutation_array);
-//                        System.out.println("a1_iterator.hasNext() = " + a1_iterator.hasNext());
 
-//                        System.out.println("Reset a1_iterator");
                         a1_iterator = a1_permutation_array.iterator();  // reset iterator for next replicate
-//                        System.out.println("remaining elements in a1_iterator after iterator reset:");
-//                        a1_iterator.forEachRemaining(e -> System.out.println("remaining_element: " + e));
-//                        System.exit(-1);
 
                         pheno = a1_iterator.next();
-                        // DEBUG
-//                        a1_array_elements_used_count++;
 
                     }
                     break;
@@ -6071,17 +4276,10 @@ public class Homoplasy_Counter implements Callable<Integer> {
                     if (a2_iterator.hasNext()) {
                         pheno = a2_iterator.next();
 
-                        // DEBUG
-//                        a2_array_elements_used_count++;
                     } else {
-                        // DEBUG
-//                        System.out.println("a2_array_elements_used_count = " + a2_array_elements_used_count);
-//                        a2_array_elements_used_count = 0;
 
                         a2_iterator = a2_permutation_array.iterator();
                         pheno = a2_iterator.next();
-                        // DEBUG
-//                        a2_array_elements_used_count++;
                     }
                     break;
             }
@@ -6186,7 +4384,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
 
-
     private class Row {
         private Homoplasy_Events homoplasy_events_for_one_site;
         private Binomial_Test_Stat test_stat_for_one_site;
@@ -6196,106 +4393,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
             this.test_stat_for_one_site = test_stat_for_one_site;
         }
 
-//        public Double get_maxT() {
-//            return test_stat_for_one_site.familywise_pvalue_a2;
-//        }
     }
 
 
-    // --Commented out by Inspection START (9/17/16, 8:20 PM):
-//    /**
-//     * Stats for 1 seg site.
-//     */
-//    private void gather_stats(HashMap<String, HashSet<String>> allele1_mrcAs, HashMap<String, HashSet<String>> allele2_mrcAs) {
-//        int allele1_num_homoplasy_events = 0;
-//        int allele2_num_homoplasy_events = 0;
-//
-//        if (allele1_mrcAs.size() > 1) {
-//            allele1_num_homoplasy_events = allele1_mrcAs.size();
-//        }
-//
-//        if (allele2_mrcAs.size() > 1) {
-//            allele2_num_homoplasy_events = allele2_mrcAs.size();
-//        }
-//
-////        System.out.print("# homoplasy events (allele1) = " + allele1_num_homoplasy_events);
-////        System.out.println("\t# homoplasy events (allele2) = " + allele2_num_homoplasy_events);
-//        System.out.println(allele1_num_homoplasy_events + "\t" + allele2_num_homoplasy_events);
-//    }
-// --Commented out by Inspection STOP (9/17/16, 8:20 PM)
-
-
-// --Commented out by Inspection START (9/13/16, 6:22 PM):
-//    /**
-//     * Testing the coevolution API only.
-//     */
-//    private void test_newick_parser(String[] args) {
-//
-//        try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
-//            // read in a newick tree
-//            NewickTreeTokenizer tokenizer = new NewickTreeTokenizer(br);
-//            NewickTreeReader tree_reader = new NewickTreeReader(tokenizer);
-//            NewickTree tree = tree_reader.readTree();
-//
-//            // spit the tree back out in newick txt format
-//            String newick_as_string = tree.toString();
-//            System.out.println(newick_as_string);
-//        } catch (IOException | DataFormatException e) {
-//            e.printStackTrace();
-//        }
-//    }
-// --Commented out by Inspection STOP (9/13/16, 6:22 PM)
-
-
-// --Commented out by Inspection START (9/13/16, 6:23 PM):
-//    /**
-//     * Testing the coevolution API only.
-//     */
-//    private void test_tree_methods(String[] args) {
-//        NewickTree tree = null;
-//
-//        try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
-//            // read in a newick tree
-//            NewickTreeTokenizer tokenizer = new NewickTreeTokenizer(br);
-//            NewickTreeReader tree_reader = new NewickTreeReader(tokenizer);
-//            tree = tree_reader.readTree();
-//        } catch (IOException | DataFormatException e) {
-//            e.printStackTrace();
-//            System.exit(-1);
-//        }
-//
-//        // test some tree methods:
-//        NewickTreeNode root = tree.getRoot();
-//        System.out.println("\nroot: " + root.getId());
-//
-//        // verify # of children of root node:
-//        System.out.println("\nverifying # children of root node:");
-//        System.out.println("root.getChildrenCount() = " + root.getChildrenCount());
-//        ArrayList children = (ArrayList) root.getChildren();
-//        System.out.println("children.size() = " + children.size());
-//
-//        // verify children node names:
-//        System.out.println("\nverifying node names of children of root directly with ArrayList:");
-//        for (int i = 0; i < children.size(); i++) {
-//            NewickTreeNode curr_child_node =  (NewickTreeNode) children.get(i);
-//            System.out.println("curr_child_node.getId() = " + curr_child_node.getId());
-//        }
-//
-//        // verify children node names using API's iterator method:
-//        System.out.println("\nverifying node names of children of root node using API's iterator:");
-//        Iterator it = root.getChildrenIterator();
-//        while (it.hasNext()) {
-//            NewickTreeNode curr_child_node = (NewickTreeNode) it.next();
-//            System.out.println("curr_child_node.getId() = " + curr_child_node.getId());
-//        }
-//
-//        // verify leaf method
-//        System.out.println("\nverifying leaf nodes:");
-//        ArrayList leaves = (ArrayList) tree.getLeafNodes();
-//        System.out.println("leaves.size() = " + leaves.size());
-//        System.out.println("leaves = " + leaves);
-//
-//
-//    }
-// --Commented out by Inspection STOP (9/13/16, 6:23 PM)
 }
