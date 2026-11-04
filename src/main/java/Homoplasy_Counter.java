@@ -103,7 +103,10 @@ public class Homoplasy_Counter implements Callable<Integer> {
   Runtime_Settings runtimeSettings;
 
   @ArgGroup(validate = false, heading = "@|bg(197) %nOutput files and options%n|@")
-  Output_Options outputOptions = new Output_Options();
+  Output_Parameters outputParameters;
+
+  // output paths and writers resolved for this run (set in more_cmdline_magic)
+  private final Output_Options outputOptions = new Output_Options();
 
   // Remaining global variables:
   private final String VERSION = "1.0.3";
@@ -444,7 +447,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     // as before (before exposing the parameter on the commandline) instead of
     // refactoring to Algo_Params.get_m() all over the place.
     m = Algo_Params.get_m();
-    DEBUG_MODE = outputOptions.DEBUG_MODE;
+    DEBUG_MODE = Output_Parameters.get_debug_mode();
     rnd = new Random(Algo_Params.get_rng_seed());
 
     // input files: ==========================================
@@ -502,7 +505,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // output dirs: ===========================================
     outputOptions.output_dir =
-        get_validated_toplevel_path(outputOptions.output_dir, basename + curr_time, curr_time);
+        get_validated_toplevel_path(
+            Output_Parameters.get_output_dir(), basename + curr_time, curr_time);
     outputOptions.output_dir
         .mkdir(); // create dir now that it has passed all checks (eg: dir does not exist yet or
     // --force-overwrite is specified by user)
@@ -511,7 +515,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
       outputOptions.anc_recon_dir =
           get_validated_relative_path(
               outputOptions.output_dir,
-              outputOptions.anc_recon_dir,
+              Output_Parameters.get_anc_recon_dir(),
               outputOptions.output_dir + File.separator + "ancestral_reconstruction_" + curr_time,
               curr_time);
 
@@ -519,7 +523,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     outputOptions.output_file =
         get_validated_relative_path(
             outputOptions.output_dir,
-            outputOptions.output_file,
+            Output_Parameters.get_output_file(),
             outputOptions.output_dir + File.separator + basename + curr_time + ".out",
             curr_time);
     outputOptions.output_file_sorted_by_a2_maxT =
@@ -543,7 +547,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     outputOptions.log_file =
         get_validated_relative_path(
             outputOptions.output_dir,
-            outputOptions.log_file,
+            Output_Parameters.get_log_file(),
             outputOptions.output_dir + File.separator + basename + curr_time + ".log",
             curr_time);
     try {
@@ -606,14 +610,12 @@ public class Homoplasy_Counter implements Callable<Integer> {
     // set default if no user-specified output file
     if (dir == null) // if no user-specified output file, set to default file
     dir = new File(default_pathname);
-    else if (outputOptions
-        .timestamp) // else if user has specified output file AND specified option to add timestamp
-      // to this filename
-      dir = new File(dir.getPath() + "." + curr_time);
+    // else if user has specified output file AND specified option to add timestamp to this filename
+    else if (Output_Parameters.get_timestamp()) dir = new File(dir.getPath() + "." + curr_time);
 
     // check if the file or dir exists, clean exit if so (unless --force-overwrite is specified by
     // user)
-    if (dir.exists() && !outputOptions.force_overwrite)
+    if (dir.exists() && !Output_Parameters.get_force_overwrite())
       throw new ParameterException(
           spec.commandLine(),
           String.format(
@@ -643,9 +645,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
     // set default if no user-specified output file
     if (file == null) // if no user-specified output file, set to default file
     file = new File(default_pathname);
-    else if (outputOptions
-        .timestamp) // else if user has specified output file AND specified option to add timestamp
-      // to this filename
+    // else if user has specified output file AND specified option to add timestamp to this filename
+    else if (Output_Parameters.get_timestamp())
       file = new File(output_dir + File.separator + file.getName() + "." + curr_time);
     else
       file =
@@ -656,7 +657,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // check if the file or dir exists, clean exit if so (unless --force-overwrite is specified by
     // user).
-    if (file.exists() && !outputOptions.force_overwrite)
+    if (file.exists() && !Output_Parameters.get_force_overwrite())
       throw new ParameterException(
           spec.commandLine(),
           String.format(
@@ -777,15 +778,15 @@ public class Homoplasy_Counter implements Callable<Integer> {
       }
 
       // timestamp
-      log.write("Is --timestamp option in use?: " + outputOptions.timestamp);
+      log.write("Is --timestamp option in use?: " + Output_Parameters.get_timestamp());
       log.newLine();
 
       // force-overwrite
-      log.write("Is --force-overwrite option in use?: " + outputOptions.force_overwrite);
+      log.write("Is --force-overwrite option in use?: " + Output_Parameters.get_force_overwrite());
       log.newLine();
 
       // debug mode
-      log.write("DEBUG MODE: " + outputOptions.DEBUG_MODE);
+      log.write("DEBUG MODE: " + Output_Parameters.get_debug_mode());
       log.newLine();
 
       // flush buffer to capture this info in case of early program termination
