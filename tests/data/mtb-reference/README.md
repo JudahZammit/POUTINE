@@ -34,6 +34,21 @@ Sample names are consistent across the FASTA, tree and phenotype files (124 in e
 | `ancestral/ancestral_sequences.fasta` | `fd61eec93fb1d959` |
 | `ancestral/ancestral_tree.newick` | `84d3f63ae9a4c2e0` |
 
+## Burden test command line options
+
+The inputs for `--anno-file`, `--set-list` and `--mask-def` (format in the [main README](../../../README.md)) were generated for this dataset as follows. poutine does not parse them yet.
+
+1. Converted the fasta and map files to a haploid VCF against the H37Rv reference (NC_000962.3), because SnpEff takes VCF input (poutine's own `--vcf` option is not in use).
+2. Ran [SnpEff](https://pcingola.github.io/SnpEff/) 5.4c (build 2026-02-23) with its `Mycobacterium_tuberculosis_h37rv` database: `snpEff -ud 100 -lof -no-intergenic`.
+   - `-no-intergenic` ignores intergenic variants.
+   - `-ud 100` counts upstream and downstream variants within 100 bp of a gene.
+   - SnpSift 5.4c (`filter "exists ANN"`) then removed the variants with no gene within 100 bp (95 of 2,946).
+3. Kept one gene per variant:
+   - On a gene: that gene, or the highest-impact one if genes overlap. Not any upstream or downstream gene.
+   - Off a gene: the nearest upstream gene (within 100 bp), else the nearest downstream gene.
+   - Ties (same impact, or flanking genes at the same distance) are broken at random, seeded by the variant's position (seed 0), so the result is reproducible.
+4. Wrote the three files from the result: one line per variant (`ID:REF:ALT`, gene, first effect), one line per gene (at the position of its first variant), and one mask, `all`, holding every effect. This gives 2,851 variants in 1,781 genes.
+
 ## Running
 
 From the repo root, with `treetime` on `PATH` for the second form:

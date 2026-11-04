@@ -141,6 +141,13 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
   }
 
+  @ArgGroup(
+      exclusive = false,
+      multiplicity = "0..1",
+      validate = true,
+      heading = "@|bg(147) %nGene set testing (regenie format): files and --burden go together%n|@")
+  Gene_Set_Options geneSetOptions;
+
   @ArgGroup(validate = false, heading = "@|bg(222) %nAlgorithm parameters%n|@")
   AlgoParams algoParams;
 
@@ -708,6 +715,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
                   + " and file name are specified.",
               inputFiles.otherInputFiles.map_filename));
 
+    if (geneSetOptions != null) geneSetOptions.check_files_exist(spec.commandLine());
+
     // output:
     final String basename = "poutine_session_";
     final String curr_time =
@@ -916,6 +925,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
       // plink map file
       log.write("plink map file: " + inputFiles.otherInputFiles.map_filename);
       log.newLine();
+
+      // gene set testing
+      Gene_Set_Options.write_log(geneSetOptions, log);
 
       // # replicates/permutations (m)
       log.write("# replicates: " + AlgoParams.m);
@@ -4039,10 +4051,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
     System.out.println(
         "point-wise null dist at segsite_ID "
             + homoplasically_informative_sites.get(segsite_index).segsite_ID);
-    pointwise_nulldist.forEach(
-        site_counts ->
-            System.out.println(
-                Arrays.toString(site_counts) + "   " + (site_counts[0] + site_counts[1])));
+    pointwise_nulldist.forEach(site_counts ->
+        System.out.println(
+            Arrays.toString(site_counts) + "   " + (site_counts[0] + site_counts[1])));
   }
 
   /**
