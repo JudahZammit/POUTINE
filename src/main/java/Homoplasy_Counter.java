@@ -145,8 +145,11 @@ public class Homoplasy_Counter implements Callable<Integer> {
       exclusive = false,
       multiplicity = "0..1",
       validate = true,
-      heading = "@|bg(147) %nGene set testing (regenie format): files and --burden go together%n|@")
-  Gene_Set_Options geneSetOptions;
+      heading =
+          "@|bg(147) %nBurden test: The files are expected to follow the same format as Regenie."
+              + " See https://rgcgithub.github.io/regenie/options/#gene-based-testing for more"
+              + " information%n|@")
+  Burden_Test_Options burdenTestOptions;
 
   @ArgGroup(validate = false, heading = "@|bg(222) %nAlgorithm parameters%n|@")
   AlgoParams algoParams;
@@ -715,7 +718,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
                   + " and file name are specified.",
               inputFiles.otherInputFiles.map_filename));
 
-    if (geneSetOptions != null) geneSetOptions.check_files_exist(spec.commandLine());
+    if (burdenTestOptions != null) burdenTestOptions.check_files_exist(spec.commandLine());
 
     // output:
     final String basename = "poutine_session_";
@@ -927,7 +930,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
       log.newLine();
 
       // gene set testing
-      Gene_Set_Options.write_log(geneSetOptions, log);
+      Burden_Test_Options.write_log(burdenTestOptions, log);
 
       // # replicates/permutations (m)
       log.write("# replicates: " + AlgoParams.m);

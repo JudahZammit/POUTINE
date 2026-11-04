@@ -6,8 +6,8 @@ import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 
-/** Gene set testing options (regenie format). Homoplasy_Counter holds null when not in use. */
-class Gene_Set_Options {
+/** Burden test options (regenie format). Homoplasy_Counter holds null when not in use. */
+class Burden_Test_Options {
   @Option(
       names = {"--anno-file"},
       description =
@@ -34,7 +34,7 @@ class Gene_Set_Options {
 
   @Option(
       names = {"--burden"},
-      description = "Run gene set burden testing (required with the gene set files; not yet used)",
+      description = "Run burden testing (required with the burden test  files; not yet used)",
       required = true)
   boolean burden;
 
@@ -62,14 +62,14 @@ class Gene_Set_Options {
               filename, option));
   }
 
-  static void write_log(Gene_Set_Options options, BufferedWriter log) throws IOException {
-    log.write(options == null ? "gene set testing: not in use" : options.describe());
+  static void write_log(Burden_Test_Options options, BufferedWriter log) throws IOException {
+    log.write(options == null ? "burden testing: not in use" : options.describe());
     log.newLine();
   }
 
   private String describe() {
     return String.format(
-        "gene set annotation file: %s%ngene set list file: %s%ngene set mask definition file:"
+        "gene set annotation file: %s%nset list file: %s%nburden test mask definition file:"
             + " %s%nIs --no-reference in use?: %b",
         anno_filename, setlist_filename, mask_filename, no_reference);
   }
