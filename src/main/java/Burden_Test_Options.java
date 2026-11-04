@@ -1,12 +1,11 @@
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
-
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 
-/** Burden test options (regenie format). Homoplasy_Counter holds null when not in use. */
+/** Burden test options (regenie format). Static state: get_burden() says if they are in use. */
 class Burden_Test_Options {
   @Option(
       names = {"--anno-file"},
@@ -14,7 +13,11 @@ class Burden_Test_Options {
           "Variant annotation file (space-delimited with no header: variant id, gene, variant"
               + " effect)",
       required = true)
-  String anno_filename;
+  private static String anno_filename;
+
+  static String get_anno_filename() {
+    return anno_filename;
+  }
 
   @Option(
       names = {"--set-list"},
@@ -22,7 +25,11 @@ class Burden_Test_Options {
           "Gene set list file (space-delimited with no header: gene, chromosome, position,"
               + " comma-separated variant ids)",
       required = true)
-  String setlist_filename;
+  private static String setlist_filename;
+
+  static String get_setlist_filename() {
+    return setlist_filename;
+  }
 
   @Option(
       names = {"--mask-def"},
@@ -30,13 +37,21 @@ class Burden_Test_Options {
           "Mask definition file (space-delimited with no header: mask name, comma-separated"
               + " variant effects)",
       required = true)
-  String mask_filename;
+  private static String mask_filename;
+
+  static String get_mask_filename() {
+    return mask_filename;
+  }
 
   @Option(
       names = {"--burden"},
       description = "Run burden testing (required with the burden test  files; not yet used)",
       required = true)
-  boolean burden;
+  private static boolean burden;
+
+  static boolean get_burden() {
+    return burden;
+  }
 
   @Option(
       names = {"--no-reference"},
@@ -44,9 +59,13 @@ class Burden_Test_Options {
           "Do not include 'reference' as a variant effect (default: false). Note that this will not"
               + " consider variants that are potentially associated with the phenotype if that"
               + " variant matches the reference.")
-  boolean no_reference = false;
+  private static boolean no_reference = false;
 
-  void check_files_exist(CommandLine cmdline) {
+  static boolean get_no_reference() {
+    return no_reference;
+  }
+
+  static void check_files_exist(CommandLine cmdline) {
     require_file_exists(cmdline, anno_filename, "--anno-file");
     require_file_exists(cmdline, setlist_filename, "--set-list");
     require_file_exists(cmdline, mask_filename, "--mask-def");
@@ -62,12 +81,12 @@ class Burden_Test_Options {
               filename, option));
   }
 
-  static void write_log(Burden_Test_Options options, BufferedWriter log) throws IOException {
-    log.write(options == null ? "burden testing: not in use" : options.describe());
+  static void write_log(BufferedWriter log) throws IOException {
+    log.write(burden ? describe() : "burden testing: not in use");
     log.newLine();
   }
 
-  private String describe() {
+  private static String describe() {
     return String.format(
         "gene set annotation file: %s%nset list file: %s%nburden test mask definition file:"
             + " %s%nIs --no-reference in use?: %b",
