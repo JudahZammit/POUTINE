@@ -13,8 +13,6 @@
  * <p>You should have received a copy of the GNU General Public License along with this program. If
  * not, see <https://www.gnu.org/licenses/>.
  */
-import static java.nio.file.StandardOpenOption.APPEND;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -26,6 +24,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.nio.file.Files;
+import static java.nio.file.StandardOpenOption.APPEND;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -49,6 +48,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+
 import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
 import org.apache.commons.math3.stat.inference.BinomialTest;
 import org.gersteinlab.coevolution.core.data.DataFormatException;
@@ -56,12 +56,17 @@ import org.gersteinlab.coevolution.core.data.NewickTree;
 import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 import org.gersteinlab.coevolution.core.io.NewickTreeReader;
 import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
+import params.Algo_Params;
+import params.Burden_Test_Options;
+import params.Input_Files;
+import params.Output_Parameters;
+import params.Runtime_Settings;
+
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Spec;
 
@@ -85,240 +90,29 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
   // TODO:  change all String filenames to File?
   @ArgGroup(exclusive = false, multiplicity = "1", validate = true)
-  InputFiles inputFiles;
+  Input_Files inputFiles;
 
-  static class InputFiles {
-    @ArgGroup(
-        exclusive = true,
-        multiplicity = "1",
-        validate = true,
-        heading = "@|bg(213) %nInput genotype file: vcf or fasta format%n|@")
-    Genotypes genotypes;
-
-    static class Genotypes {
-      @Option(
-          names = {"-v", "--vcf"},
-          description = "Multi-sample vcf file (this option is currently not in use/available)")
-      private String vcf_filename;
-
-      @Option(
-          names = {"-f", "--fasta"},
-          description =
-              "Multi-fasta file (ancestral fasta file if -u in use). Variable sites only. Sites"
-                  + " must be in the same order as in the physical position file.")
-      private String msa_fasta_filename;
-    }
-
-    @ArgGroup(
-        exclusive = false,
-        multiplicity = "1",
-        validate = true,
-        heading = "@|bg(123) %nOther input files%n|@")
-    OtherInputFiles otherInputFiles;
-
-    static class OtherInputFiles {
-      @Option(
-          names = {"-p", "--phenos"},
-          description =
-              "Phenotype file (case = 1, control = 0. Format is two columns tab-delimited with no"
-                  + " header: column one is sample id, column two is phenotype)",
-          required = true)
-      private String pheno_filename;
-
-      @Option(
-          names = {"-t", "--tree"},
-          description = "Newick file (ancestral newick file if -u in use)",
-          required = true)
-      private String newick_filename;
-
-      @Option(
-          names = {"-m", "--map"},
-          description =
-              "Physical positions file (PLINK map format or tab-delimited with no header: last"
-                  + " column represents physical positions, all other columns not used)",
-          required = true)
-      private String map_filename;
-    }
-  }
+  @ArgGroup(
+      exclusive = false,
+      multiplicity = "0..1",
+      validate = true,
+      heading =
+          "@|bg(147) %nBurden test: The files are expected to follow the same format as Regenie."
+              + " See https://rgcgithub.github.io/regenie/options/#gene-based-testing for more"
+              + " information%n|@")
+  Burden_Test_Options burdenTestOptions;
 
   @ArgGroup(validate = false, heading = "@|bg(222) %nAlgorithm parameters%n|@")
-  AlgoParams algoParams;
-
-  static class AlgoParams {
-    private static int m = 100000; // default value
-
-    @Option(
-        names = {"-r", "--replicates"},
-        paramLabel = "<# replicates>",
-        description = "# Replicates used for resampling (default: 100000)",
-        required = false,
-        order = 1)
-    private void validate_and_set_replicates_option(int user_value) {
-      if (user_value > 0) m = user_value;
-      else
-        throw new ParameterException(
-            spec.commandLine(),
-            String.format(
-                "%nInvalid value '%s' for option '--replicates': "
-                    + "# replicates used for resampling must be > 0",
-                user_value));
-    }
-
-    private static int min_hcount =
-        1; // default value.  1 := use all homoplasic seg sites, 0 := use all seg sites including
-
-    // those without any homoplasic mutations on either allele
-
-    @Option(
-        names = {"-c", "--min_hcount"},
-        paramLabel = "<count>",
-        description = "Minimum # homoplasic mutations required at each allele (default: 1)",
-        required = false,
-        order = 2)
-    private void validate_and_set_min_hcount_option(int user_value) {
-      if (user_value >= 0) min_hcount = user_value;
-      else
-        throw new ParameterException(
-            spec.commandLine(),
-            String.format(
-                "%nInvalid value '%s' for option '--min_hcounts': "
-                    + "# homoplasic mutations at a segregating site must be >= 0",
-                user_value));
-    }
-
-    @Option(
-        names = {"-u", "--use-precomputed-anc-recon"},
-        description =
-            "Use precomputed ancestral reconstruction as input. Specify --fasta for ancestral fasta"
-                + " file and --tree for ancestral newick file.",
-        required = false,
-        order = 3)
-    private static boolean use_precomputed_anc_recon = false;
-
-    private static int rng_seed =
-        new Random()
-            .nextInt(
-                Integer
-                    .MAX_VALUE); // default value := random seed (always logged so that any session
-
-    // can be repeated)
-
-    @Option(
-        names = {"-S", "--rng-seed"},
-        paramLabel = "<seed>",
-        description =
-            "Seed for the random number generator used in resampling and passed to treetime"
-                + " (default: random, recorded in the log). Results reproduce exactly only with"
-                + " --threads 1",
-        required = false,
-        order = 4)
-    private void validate_and_set_rng_seed_option(int user_value) {
-      if (user_value >= 0) rng_seed = user_value;
-      else
-        throw new ParameterException(
-            spec.commandLine(),
-            String.format(
-                "%nInvalid value '%s' for option '--rng-seed': " + "seed must be >= 0",
-                user_value));
-    }
-  }
+  Algo_Params algoParams;
 
   @ArgGroup(validate = false, heading = "@|bg(85) %nRuntime options%n|@")
-  RuntimeSettings runtimeSettings;
-
-  static class RuntimeSettings {
-    private static int num_threads =
-        Runtime.getRuntime()
-            .availableProcessors(); // default value := max # logical processors available (# cpu
-
-    // cores and hyperthreading)
-
-    @Option(
-        names = {"-T", "--threads"},
-        paramLabel = "<# threads>",
-        description = "# Threads used for parallel processing (default: max # logical processors)",
-        required = false)
-    private void validate_and_set_thread_option(int user_value) {
-      if (user_value > 0) num_threads = user_value;
-      else
-        throw new ParameterException(
-            spec.commandLine(),
-            String.format(
-                "%nInvalid value '%s' for option '--threads': " + "# threads must be > 0",
-                user_value));
-    }
-  }
+  Runtime_Settings runtimeSettings;
 
   @ArgGroup(validate = false, heading = "@|bg(197) %nOutput files and options%n|@")
-  OutputOptions outputOptions = new OutputOptions();
+  Output_Parameters outputParameters;
 
-  static class OutputOptions {
-    @Option(
-        names = {"-d", "--out-dir"},
-        description =
-            "Output directory for all output files (default: poutine_session_current_time)",
-        required = false)
-    private File output_dir; // default is relative to the current dir
-
-    @Option(
-        names = {"-o", "--out"},
-        description =
-            "Output file (relative to --out-dir) containing association results (default:"
-                + " out-dir/poutine_session_current_time.out)",
-        required = false)
-    private File output_file;
-
-    private File output_file_sorted_by_a1_maxT;
-    private File output_file_sorted_by_a2_maxT;
-    private BufferedWriter out;
-    private BufferedWriter out_sorted_by_a1_maxT;
-    private BufferedWriter out_sorted_by_a2_maxT;
-
-    @Option(
-        names = {"-l", "--log"},
-        description =
-            "Log file (relative to --out-dir) containing this session's log ouput and any runtime"
-                + " errors that may occur (default: out-dir/poutine_session_current_time.log)",
-        required = false)
-    private File log_file;
-
-    private BufferedWriter log;
-
-    @Option(
-        names = {"-a", "--anc-recon-out-dir"},
-        description =
-            "Output directory (relative to --out-dir) for all files related to ancestral"
-                + " reconstruction (default: out-dir/ancestral_reconstruction_current_time)",
-        required = false)
-    private File anc_recon_dir; // default is a subdirectory of output_dirname
-
-    @Option(
-        names = {"-s", "--timestamp"},
-        description =
-            "Add current session's start timestamp to user-specified dir and filenames (default: no"
-                + " timestamp)",
-        required = false)
-    private boolean timestamp = false;
-
-    @Option(
-        names = {"-X", "--force-overwrite"},
-        description =
-            "Allow overwriting of existing files having the same user-specified filenames (default:"
-                + " program safely exits if existing files detected)",
-        required = false)
-    private boolean force_overwrite = false;
-
-    @Option(
-        names = {"-D", "--debug"},
-        description =
-            "Turns debug mode on: output all debugging information to debug file"
-                + " out-dir/poutine_session_current_time.debug (this option is likely temporary for"
-                + " testing purposes)",
-        required = false)
-    private boolean DEBUG_MODE = false;
-
-    private BufferedWriter debug;
-  }
+  // output paths and writers resolved for this run (set in more_cmdline_magic)
+  private final Output_Options outputOptions = new Output_Options();
 
   // Remaining global variables:
   private final String VERSION = "1.0.3";
@@ -385,7 +179,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
                 + "%n|@"));
     System.out.printf(
         Ansi.AUTO.string(
-            "@|fg(213) Random number generator seed: " + AlgoParams.rng_seed + "%n|@"));
+            "@|fg(213) Random number generator seed: " + Algo_Params.get_rng_seed() + "%n|@"));
 
     // WARNING:  warn user if user-specified # replicates is potentially too low to properly
     // estimate statistical significance
@@ -414,7 +208,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
      */
     String ancestral_newick = null;
     String ancestral_fasta = null;
-    if (!algoParams.use_precomputed_anc_recon) {
+    if (!Algo_Params.get_use_precomputed_anc_recon()) {
       ancestral_reconstruction();
 
       // parse treetime's annotated nexus file (with internal node's labelled) -> newick.  In
@@ -434,7 +228,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
       ancestral_newick = input_newick;
 
       // set ancestral_fasta to point to user-specified precomputed ancestral fasta file
-      ancestral_fasta = inputFiles.genotypes.msa_fasta_filename;
+      ancestral_fasta = Input_Files.get_genotypes().get_msa_fasta_filename();
     }
 
     System.out.printf(
@@ -614,7 +408,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     String newick = null;
     try (BufferedReader br =
-        new BufferedReader(new FileReader(inputFiles.otherInputFiles.newick_filename))) {
+        new BufferedReader(
+            new FileReader(Input_Files.get_other_input_files().get_newick_filename()))) {
       StringBuilder sb = new StringBuilder();
       String currline;
       while ((currline = br.readLine()) != null) {
@@ -650,63 +445,26 @@ public class Homoplasy_Counter implements Callable<Integer> {
     return newick;
   }
 
-  /*
-   * At some point, all commandline validation checks may go here to keep the code tidy.
-   */
-  private void more_cmdline_magic() {
-    m =
-        AlgoParams
-            .m; // not the most elegant (keep for now), but i want to keep the m variable the same
+  // Each parameter class checks its own values. The range checks come first, as they did when they
+  // were done while parsing the command line.
+  private void verify_parameters() {
+    CommandLine cmdline = spec.commandLine();
+    Algo_Params.verify(cmdline);
+    Runtime_Settings.verify(cmdline);
+    Input_Files.verify(cmdline);
+    Burden_Test_Options.verify(cmdline);
+    Output_Parameters.verify(cmdline);
+  }
+
+  private void more_cmdline_magic() throws IOException {
+    verify_parameters();
+
+    // not the most elegant (keep for now), but i want to keep the m variable the same
     // as before (before exposing the parameter on the commandline) instead of
-    // refactoring to AlgoParams.m all over the place.
-    DEBUG_MODE = outputOptions.DEBUG_MODE;
-    rnd = new Random(AlgoParams.rng_seed);
-
-    // input files: ==========================================
-    if ((inputFiles.genotypes.msa_fasta_filename != null)
-        && (!new File(inputFiles.genotypes.msa_fasta_filename)
-            .exists())) // user has selected --fasta option AND user-specified fasta file does not
-      // exist
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--fasta' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              inputFiles.genotypes.msa_fasta_filename));
-
-    if ((inputFiles.genotypes.vcf_filename != null)
-        && (!new File(inputFiles.genotypes.vcf_filename)
-            .exists())) // user has selected --vcf option AND user-specified vcf file does not exist
-    throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--vcf' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              inputFiles.genotypes.vcf_filename));
-
-    if (!new File(inputFiles.otherInputFiles.pheno_filename).exists())
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--phenos' cannot be found.  Please make sure the correct"
-                  + " path and file name are specified.",
-              inputFiles.otherInputFiles.pheno_filename));
-
-    if (!new File(inputFiles.otherInputFiles.newick_filename).exists())
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--tree' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              inputFiles.otherInputFiles.newick_filename));
-
-    if (!new File(inputFiles.otherInputFiles.map_filename).exists())
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--map' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              inputFiles.otherInputFiles.map_filename));
+    // refactoring to Algo_Params.get_m() all over the place.
+    m = Algo_Params.get_m();
+    DEBUG_MODE = Output_Parameters.get_debug_mode();
+    rnd = new Random(Algo_Params.get_rng_seed());
 
     // output:
     final String basename = "poutine_session_";
@@ -715,16 +473,16 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // output dirs: ===========================================
     outputOptions.output_dir =
-        get_validated_toplevel_path(outputOptions.output_dir, basename + curr_time, curr_time);
+        resolve_toplevel_path(Output_Parameters.get_output_dir(), basename + curr_time, curr_time);
     outputOptions.output_dir
         .mkdir(); // create dir now that it has passed all checks (eg: dir does not exist yet or
     // --force-overwrite is specified by user)
 
-    if (!algoParams.use_precomputed_anc_recon)
+    if (!Algo_Params.get_use_precomputed_anc_recon())
       outputOptions.anc_recon_dir =
           get_validated_relative_path(
               outputOptions.output_dir,
-              outputOptions.anc_recon_dir,
+              Output_Parameters.get_anc_recon_dir(),
               outputOptions.output_dir + File.separator + "ancestral_reconstruction_" + curr_time,
               curr_time);
 
@@ -732,48 +490,32 @@ public class Homoplasy_Counter implements Callable<Integer> {
     outputOptions.output_file =
         get_validated_relative_path(
             outputOptions.output_dir,
-            outputOptions.output_file,
+            Output_Parameters.get_output_file(),
             outputOptions.output_dir + File.separator + basename + curr_time + ".out",
             curr_time);
     outputOptions.output_file_sorted_by_a2_maxT =
         new File(outputOptions.output_file.getAbsolutePath() + ".sorted_by_a2_maxT");
     outputOptions.output_file_sorted_by_a1_maxT =
         new File(outputOptions.output_file.getAbsolutePath() + ".sorted_by_a1_maxT");
-    try {
-      outputOptions.out = new BufferedWriter(new FileWriter(outputOptions.output_file));
-      outputOptions.out_sorted_by_a2_maxT =
-          new BufferedWriter(new FileWriter(outputOptions.output_file_sorted_by_a2_maxT));
-      outputOptions.out_sorted_by_a1_maxT =
-          new BufferedWriter(new FileWriter(outputOptions.output_file_sorted_by_a1_maxT));
-    } catch (IOException ioe) {
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--out' is not a valid file.  Please enter a valid filename.",
-              outputOptions.output_file.toString()));
-    }
+    outputOptions.out = new BufferedWriter(new FileWriter(outputOptions.output_file));
+    outputOptions.out_sorted_by_a2_maxT =
+        new BufferedWriter(new FileWriter(outputOptions.output_file_sorted_by_a2_maxT));
+    outputOptions.out_sorted_by_a1_maxT =
+        new BufferedWriter(new FileWriter(outputOptions.output_file_sorted_by_a1_maxT));
 
     outputOptions.log_file =
         get_validated_relative_path(
             outputOptions.output_dir,
-            outputOptions.log_file,
+            Output_Parameters.get_log_file(),
             outputOptions.output_dir + File.separator + basename + curr_time + ".log",
             curr_time);
-    try {
-      outputOptions.log = new BufferedWriter(new FileWriter(outputOptions.log_file));
+    outputOptions.log = new BufferedWriter(new FileWriter(outputOptions.log_file));
 
-      // set all stack traces to be sent to log file
-      // properly appends to file and autoflushes to make sure in the event of a runtime error all
-      // info is written out before program execution ends
-      System.setErr(
-          new PrintStream(Files.newOutputStream(outputOptions.log_file.toPath(), APPEND), true));
-    } catch (IOException e) {
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--log' is not a valid file.  Please enter a valid filename.",
-              outputOptions.log_file.toString()));
-    }
+    // set all stack traces to be sent to log file
+    // properly appends to file and autoflushes to make sure in the event of a runtime error all
+    // info is written out before program execution ends
+    System.setErr(
+        new PrintStream(Files.newOutputStream(outputOptions.log_file.toPath(), APPEND), true));
 
     if (DEBUG_MODE) {
       try {
@@ -804,9 +546,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
   /**
    * This method is used to set a directory path. Top-level meaning that this allows the user to set
-   * a dir anywhere on their filesystem. This method also checks the following: - is the default
-   * pathname needed? (ie poutine_session_current_time) - is --timestamp option in use? - is
-   * --force-overwrite option in use?
+   * a dir anywhere on their filesystem. This method also handles the following: - is the default
+   * pathname needed? (ie poutine_session_current_time) - is --timestamp option in use?
    *
    * @param dir
    * @param default_pathname
@@ -814,25 +555,13 @@ public class Homoplasy_Counter implements Callable<Integer> {
    * @return dir is a top-level output dir either specified by the user on the commandline or is set
    *     to the default: poutine_session_current_time (relative to user's current working directory)
    */
-  private File get_validated_toplevel_path(File dir, String default_pathname, String curr_time) {
+  private File resolve_toplevel_path(File dir, String default_pathname, String curr_time) {
 
     // set default if no user-specified output file
     if (dir == null) // if no user-specified output file, set to default file
     dir = new File(default_pathname);
-    else if (outputOptions
-        .timestamp) // else if user has specified output file AND specified option to add timestamp
-      // to this filename
-      dir = new File(dir.getPath() + "." + curr_time);
-
-    // check if the file or dir exists, clean exit if so (unless --force-overwrite is specified by
-    // user)
-    if (dir.exists() && !outputOptions.force_overwrite)
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nDirectory '%s' already exists.  Use --force-overwrite option to use existing"
-                  + " directory.",
-              dir.toString()));
+    // else if user has specified output file AND specified option to add timestamp to this filename
+    else if (Output_Parameters.get_timestamp()) dir = new File(dir.getPath() + "." + curr_time);
 
     return dir;
   }
@@ -856,9 +585,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
     // set default if no user-specified output file
     if (file == null) // if no user-specified output file, set to default file
     file = new File(default_pathname);
-    else if (outputOptions
-        .timestamp) // else if user has specified output file AND specified option to add timestamp
-      // to this filename
+    // else if user has specified output file AND specified option to add timestamp to this filename
+    else if (Output_Parameters.get_timestamp())
       file = new File(output_dir + File.separator + file.getName() + "." + curr_time);
     else
       file =
@@ -869,7 +597,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // check if the file or dir exists, clean exit if so (unless --force-overwrite is specified by
     // user).
-    if (file.exists() && !outputOptions.force_overwrite)
+    if (file.exists() && !Output_Parameters.get_force_overwrite())
       throw new ParameterException(
           spec.commandLine(),
           String.format(
@@ -902,40 +630,45 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
       // input files:
       // genotypes
-      log.write("genotype file: " + inputFiles.genotypes.msa_fasta_filename);
+      log.write("genotype file: " + Input_Files.get_genotypes().get_msa_fasta_filename());
       log.newLine();
 
       // phenos
-      log.write("phenotype file: " + inputFiles.otherInputFiles.pheno_filename);
+      log.write("phenotype file: " + Input_Files.get_other_input_files().get_pheno_filename());
       log.newLine();
 
       // tree
-      log.write("tree file: " + inputFiles.otherInputFiles.newick_filename);
+      log.write("tree file: " + Input_Files.get_other_input_files().get_newick_filename());
       log.newLine();
 
       // plink map file
-      log.write("plink map file: " + inputFiles.otherInputFiles.map_filename);
+      log.write("plink map file: " + Input_Files.get_other_input_files().get_map_filename());
       log.newLine();
 
+      // gene set testing
+      Burden_Test_Options.write_log(log);
+
       // # replicates/permutations (m)
-      log.write("# replicates: " + AlgoParams.m);
+      log.write("# replicates: " + Algo_Params.get_m());
       log.newLine();
 
       // min_hcount
       log.write(
-          "min # homoplasic mutations required at each segregating site: " + AlgoParams.min_hcount);
+          "min # homoplasic mutations required at each segregating site: "
+              + Algo_Params.get_min_hcount());
       log.newLine();
 
       // rng seed
-      log.write("rng seed: " + AlgoParams.rng_seed);
+      log.write("rng seed: " + Algo_Params.get_rng_seed());
       log.newLine();
 
       // use-precomputed-anc-recon
-      log.write("Is --use-precomputed-anc-recon in use?: " + algoParams.use_precomputed_anc_recon);
+      log.write(
+          "Is --use-precomputed-anc-recon in use?: " + Algo_Params.get_use_precomputed_anc_recon());
       log.newLine();
 
       // # threads
-      log.write("# threads used: " + RuntimeSettings.num_threads);
+      log.write("# threads used: " + Runtime_Settings.get_num_threads());
       log.newLine();
 
       // output dir
@@ -958,7 +691,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
                   + outputOptions.output_file_sorted_by_a2_maxT.getAbsolutePath()));
       log.newLine();
 
-      if (!algoParams.use_precomputed_anc_recon) {
+      if (!Algo_Params.get_use_precomputed_anc_recon()) {
         // anc recon output dir
         log.write(
             "ancestral reconstruction output directory: "
@@ -985,15 +718,15 @@ public class Homoplasy_Counter implements Callable<Integer> {
       }
 
       // timestamp
-      log.write("Is --timestamp option in use?: " + outputOptions.timestamp);
+      log.write("Is --timestamp option in use?: " + Output_Parameters.get_timestamp());
       log.newLine();
 
       // force-overwrite
-      log.write("Is --force-overwrite option in use?: " + outputOptions.force_overwrite);
+      log.write("Is --force-overwrite option in use?: " + Output_Parameters.get_force_overwrite());
       log.newLine();
 
       // debug mode
-      log.write("DEBUG MODE: " + outputOptions.DEBUG_MODE);
+      log.write("DEBUG MODE: " + Output_Parameters.get_debug_mode());
       log.newLine();
 
       // flush buffer to capture this info in case of early program termination
@@ -1019,13 +752,13 @@ public class Homoplasy_Counter implements Callable<Integer> {
               "treetime",
               "ancestral",
               "--aln",
-              inputFiles.genotypes.msa_fasta_filename,
+              Input_Files.get_genotypes().get_msa_fasta_filename(),
               "--tree",
-              inputFiles.otherInputFiles.newick_filename,
+              Input_Files.get_other_input_files().get_newick_filename(),
               "--outdir",
               outputOptions.anc_recon_dir.getPath(),
               "--rng-seed",
-              String.valueOf(AlgoParams.rng_seed),
+              String.valueOf(Algo_Params.get_rng_seed()),
               "--gtr",
               "infer");
 
@@ -1204,7 +937,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // log important global variables
     System.out.println("m = " + m);
-    System.out.println("min_hcount = " + AlgoParams.min_hcount);
+    System.out.println("min_hcount = " + Algo_Params.get_min_hcount());
     System.out.println("R_SPACE_TYPE = " + R_SPACE_TYPE);
     System.out.println("TAIL_TYPE = " + TAIL_TYPE);
     System.out.println("EXTANT_NODES_ONLY = " + EXTANT_NODES_ONLY);
@@ -1257,7 +990,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
     ArrayList<Integer> poss = new ArrayList<>();
 
     try (BufferedReader br =
-        new BufferedReader(new FileReader(inputFiles.otherInputFiles.map_filename))) {
+        new BufferedReader(
+            new FileReader(Input_Files.get_other_input_files().get_map_filename()))) {
       String currline;
       while ((currline = br.readLine()) != null) {
         String[] cols = currline.split("\t");
@@ -1783,7 +1517,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
     HashMap<String, String> phenos = new HashMap<>();
 
     try (BufferedReader br =
-        new BufferedReader(new FileReader(inputFiles.otherInputFiles.pheno_filename))) {
+        new BufferedReader(
+            new FileReader(Input_Files.get_other_input_files().get_pheno_filename()))) {
       String currline;
       while ((currline = br.readLine()) != null) {
         String[] pheno_cols = currline.split("\t");
@@ -1868,7 +1603,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // use only "homoplasically informative sites"
     ArrayList<Homoplasy_Events> homoplasically_informative_sites =
-        subset_by_min_hcount(all_events, AlgoParams.min_hcount);
+        subset_by_min_hcount(all_events, Algo_Params.get_min_hcount());
     phyC_Test_Statistic[] resampled_test_statistics =
         phyC(homoplasically_informative_sites, phenos);
 
@@ -1895,7 +1630,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // use only "homoplasically informative sites"
     ArrayList<Homoplasy_Events> homoplasically_informative_sites =
-        subset_by_min_hcount(all_events, AlgoParams.min_hcount);
+        subset_by_min_hcount(all_events, Algo_Params.get_min_hcount());
 
     Binomial_Test_Stat[] resampled_test_statistics = null;
     switch (R_SPACE_TYPE) {
@@ -2801,7 +2536,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // START OF RESAMPLING -----------------------------------
     System.out.printf(Ansi.AUTO.string("@|fg(85) %nStarting resampling . . . %n|@"));
-    ExecutorService thread_pool = Executors.newFixedThreadPool(RuntimeSettings.num_threads);
+    ExecutorService thread_pool = Executors.newFixedThreadPool(Runtime_Settings.get_num_threads());
     CountDownLatch count_down_latch = new CountDownLatch(m);
     System.out.printf(
         "New thread pool created.  Status: " + get_thread_pool_status(thread_pool) + "%n");
@@ -2813,8 +2548,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
         int max_threads = Runtime.getRuntime().availableProcessors();
         outputOptions.debug.write("max_threads = " + max_threads + "\n"); // max logical processors
         outputOptions.debug.write(
-            "RuntimeSettings.num_threads = "
-                + RuntimeSettings.num_threads
+            "Runtime_Settings.num_threads = "
+                + Runtime_Settings.get_num_threads()
                 + "\n"); // testing user-specified # threads and default value
 
         // did thread pool get set to user-specified num_thread or default value?
@@ -3596,7 +3331,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
       System.out.printf(
           "%nmin_hcount = %s is set too high and has filtered out all segregating sites.  Try"
               + " setting min_hcount to a lower value.%n%n",
-          AlgoParams.min_hcount);
+          Algo_Params.get_min_hcount());
       System.exit(-1);
     }
 
@@ -3642,7 +3377,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
       outputOptions.log.write(
           String.format(
               "%n# segregating sites with at least "
-                  + AlgoParams.min_hcount
+                  + Algo_Params.get_min_hcount()
                   + " homoplasic mutations: "
                   + homoplasically_informative_sites.size()
                   + "%n"));
@@ -4039,10 +3774,9 @@ public class Homoplasy_Counter implements Callable<Integer> {
     System.out.println(
         "point-wise null dist at segsite_ID "
             + homoplasically_informative_sites.get(segsite_index).segsite_ID);
-    pointwise_nulldist.forEach(
-        site_counts ->
-            System.out.println(
-                Arrays.toString(site_counts) + "   " + (site_counts[0] + site_counts[1])));
+    pointwise_nulldist.forEach(site_counts ->
+        System.out.println(
+            Arrays.toString(site_counts) + "   " + (site_counts[0] + site_counts[1])));
   }
 
   /**

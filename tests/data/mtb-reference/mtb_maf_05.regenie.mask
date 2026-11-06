@@ -1,0 +1,1 @@
+all downstream_gene_variant,missense_variant,non_coding_transcript_exon_variant,splice_region_variant,start_lost,stop_gained,stop_lost,synonymous_variant,upstream_gene_variant

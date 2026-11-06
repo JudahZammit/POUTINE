@@ -102,6 +102,14 @@ poutine ... --rng-seed 42 --threads 1
 
 Every session prints its seed under the "Starting poutine session" line and records it in the log file, so a run that did not set a seed can still be repeated by passing the logged value to `--rng-seed`.  When ancestral reconstruction is run, the seed is also passed to treetime.  With more than one thread the replicates are still seeded but are drawn in a thread-dependent order, so results are not guaranteed to be identical.
 
+**Burden test command line options.**  Burden testing uses the same input formats as [regenie](https://rgcgithub.github.io/regenie/options/#input_1).  All files are space-delimited with no header.  `--anno-file`, `--set-list`, `--mask-def` and `--burden` must be given together; `--no-reference` is optional.  The files are accepted but not parsed or used yet.
+
+- `--anno-file`: one line per variant.  Column 1 is the variant, `REF-ID_POS:REF-ALL:ALT-ALL` (for example `H37Rv_371:C:T`); column 2 is the gene it is in; column 3 is the type of variant, following [SnpEff](https://pcingola.github.io/SnpEff/snpeff/inputoutput/#effect-prediction-details) categories.
+- `--set-list`: one line per gene.  Column 1 is the gene name; column 2 the chromosome; column 3 the position in the reference; column 4 the comma-separated variants in the gene.
+- `--mask-def`: one line per mask, used to filter variants by type.  Column 1 is the mask ID; column 2 the comma-separated variant types to keep.  A mask turns the kept variants of each gene into one pseudo-variant.  Only one mask is supported for now.
+- `--burden`: run burden testing.
+- `--no-reference`: do not include "reference" as a variant effect.  This will not consider variants that are potentially associated with the phenotype if that variant matches the reference.
+
 Since a picture is worth a thousand words:  
 
 ![Image of new cli](https://github.com/Peter-Two-Point-O/Easy-Is-Better-Than-Better/blob/master/images/poutine_cli_screenshot_4.png)
