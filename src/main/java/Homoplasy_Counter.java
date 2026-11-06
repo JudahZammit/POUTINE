@@ -13,8 +13,6 @@
  * <p>You should have received a copy of the GNU General Public License along with this program. If
  * not, see <https://www.gnu.org/licenses/>.
  */
-import static java.nio.file.StandardOpenOption.APPEND;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -26,6 +24,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.nio.file.Files;
+import static java.nio.file.StandardOpenOption.APPEND;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -49,6 +48,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+
 import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
 import org.apache.commons.math3.stat.inference.BinomialTest;
 import org.gersteinlab.coevolution.core.data.DataFormatException;
@@ -56,6 +56,7 @@ import org.gersteinlab.coevolution.core.data.NewickTree;
 import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 import org.gersteinlab.coevolution.core.io.NewickTreeReader;
 import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
+
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -439,64 +440,26 @@ public class Homoplasy_Counter implements Callable<Integer> {
     return newick;
   }
 
-  /*
-   * At some point, all commandline validation checks may go here to keep the code tidy.
-   */
-  private void more_cmdline_magic() {
+  // Each parameter class checks its own values. The range checks come first, as they did when they
+  // were done while parsing the command line.
+  private void verify_parameters() {
+    CommandLine cmdline = spec.commandLine();
+    Algo_Params.verify(cmdline);
+    Runtime_Settings.verify(cmdline);
+    Input_Files.verify(cmdline);
+    Burden_Test_Options.verify(cmdline);
+    Output_Parameters.verify(cmdline);
+  }
+
+  private void more_cmdline_magic() throws IOException {
+    verify_parameters();
+
     // not the most elegant (keep for now), but i want to keep the m variable the same
     // as before (before exposing the parameter on the commandline) instead of
     // refactoring to Algo_Params.get_m() all over the place.
     m = Algo_Params.get_m();
     DEBUG_MODE = Output_Parameters.get_debug_mode();
     rnd = new Random(Algo_Params.get_rng_seed());
-
-    // input files: ==========================================
-    if ((Input_Files.get_genotypes().get_msa_fasta_filename() != null)
-        && (!new File(Input_Files.get_genotypes().get_msa_fasta_filename())
-            .exists())) // user has selected --fasta option AND user-specified fasta file does not
-      // exist
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--fasta' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              Input_Files.get_genotypes().get_msa_fasta_filename()));
-
-    if ((Input_Files.get_genotypes().get_vcf_filename() != null)
-        && (!new File(Input_Files.get_genotypes().get_vcf_filename())
-            .exists())) // user has selected --vcf option AND user-specified vcf file does not exist
-    throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--vcf' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              Input_Files.get_genotypes().get_vcf_filename()));
-
-    if (!new File(Input_Files.get_other_input_files().get_pheno_filename()).exists())
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--phenos' cannot be found.  Please make sure the correct"
-                  + " path and file name are specified.",
-              Input_Files.get_other_input_files().get_pheno_filename()));
-
-    if (!new File(Input_Files.get_other_input_files().get_newick_filename()).exists())
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--tree' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              Input_Files.get_other_input_files().get_newick_filename()));
-
-    if (!new File(Input_Files.get_other_input_files().get_map_filename()).exists())
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--map' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              Input_Files.get_other_input_files().get_map_filename()));
-
-    if (Burden_Test_Options.get_burden()) Burden_Test_Options.check_files_exist(spec.commandLine());
 
     // output:
     final String basename = "poutine_session_";
@@ -505,8 +468,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // output dirs: ===========================================
     outputOptions.output_dir =
-        get_validated_toplevel_path(
-            Output_Parameters.get_output_dir(), basename + curr_time, curr_time);
+        resolve_toplevel_path(Output_Parameters.get_output_dir(), basename + curr_time, curr_time);
     outputOptions.output_dir
         .mkdir(); // create dir now that it has passed all checks (eg: dir does not exist yet or
     // --force-overwrite is specified by user)
@@ -530,19 +492,11 @@ public class Homoplasy_Counter implements Callable<Integer> {
         new File(outputOptions.output_file.getAbsolutePath() + ".sorted_by_a2_maxT");
     outputOptions.output_file_sorted_by_a1_maxT =
         new File(outputOptions.output_file.getAbsolutePath() + ".sorted_by_a1_maxT");
-    try {
-      outputOptions.out = new BufferedWriter(new FileWriter(outputOptions.output_file));
-      outputOptions.out_sorted_by_a2_maxT =
-          new BufferedWriter(new FileWriter(outputOptions.output_file_sorted_by_a2_maxT));
-      outputOptions.out_sorted_by_a1_maxT =
-          new BufferedWriter(new FileWriter(outputOptions.output_file_sorted_by_a1_maxT));
-    } catch (IOException ioe) {
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--out' is not a valid file.  Please enter a valid filename.",
-              outputOptions.output_file.toString()));
-    }
+    outputOptions.out = new BufferedWriter(new FileWriter(outputOptions.output_file));
+    outputOptions.out_sorted_by_a2_maxT =
+        new BufferedWriter(new FileWriter(outputOptions.output_file_sorted_by_a2_maxT));
+    outputOptions.out_sorted_by_a1_maxT =
+        new BufferedWriter(new FileWriter(outputOptions.output_file_sorted_by_a1_maxT));
 
     outputOptions.log_file =
         get_validated_relative_path(
@@ -550,21 +504,13 @@ public class Homoplasy_Counter implements Callable<Integer> {
             Output_Parameters.get_log_file(),
             outputOptions.output_dir + File.separator + basename + curr_time + ".log",
             curr_time);
-    try {
-      outputOptions.log = new BufferedWriter(new FileWriter(outputOptions.log_file));
+    outputOptions.log = new BufferedWriter(new FileWriter(outputOptions.log_file));
 
-      // set all stack traces to be sent to log file
-      // properly appends to file and autoflushes to make sure in the event of a runtime error all
-      // info is written out before program execution ends
-      System.setErr(
-          new PrintStream(Files.newOutputStream(outputOptions.log_file.toPath(), APPEND), true));
-    } catch (IOException e) {
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nFile '%s' for option '--log' is not a valid file.  Please enter a valid filename.",
-              outputOptions.log_file.toString()));
-    }
+    // set all stack traces to be sent to log file
+    // properly appends to file and autoflushes to make sure in the event of a runtime error all
+    // info is written out before program execution ends
+    System.setErr(
+        new PrintStream(Files.newOutputStream(outputOptions.log_file.toPath(), APPEND), true));
 
     if (DEBUG_MODE) {
       try {
@@ -595,9 +541,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
   /**
    * This method is used to set a directory path. Top-level meaning that this allows the user to set
-   * a dir anywhere on their filesystem. This method also checks the following: - is the default
-   * pathname needed? (ie poutine_session_current_time) - is --timestamp option in use? - is
-   * --force-overwrite option in use?
+   * a dir anywhere on their filesystem. This method also handles the following: - is the default
+   * pathname needed? (ie poutine_session_current_time) - is --timestamp option in use?
    *
    * @param dir
    * @param default_pathname
@@ -605,23 +550,13 @@ public class Homoplasy_Counter implements Callable<Integer> {
    * @return dir is a top-level output dir either specified by the user on the commandline or is set
    *     to the default: poutine_session_current_time (relative to user's current working directory)
    */
-  private File get_validated_toplevel_path(File dir, String default_pathname, String curr_time) {
+  private File resolve_toplevel_path(File dir, String default_pathname, String curr_time) {
 
     // set default if no user-specified output file
     if (dir == null) // if no user-specified output file, set to default file
     dir = new File(default_pathname);
     // else if user has specified output file AND specified option to add timestamp to this filename
     else if (Output_Parameters.get_timestamp()) dir = new File(dir.getPath() + "." + curr_time);
-
-    // check if the file or dir exists, clean exit if so (unless --force-overwrite is specified by
-    // user)
-    if (dir.exists() && !Output_Parameters.get_force_overwrite())
-      throw new ParameterException(
-          spec.commandLine(),
-          String.format(
-              "%nDirectory '%s' already exists.  Use --force-overwrite option to use existing"
-                  + " directory.",
-              dir.toString()));
 
     return dir;
   }
