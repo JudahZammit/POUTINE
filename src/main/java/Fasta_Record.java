@@ -5,56 +5,46 @@
  * authorship to be confirmed with the previous maintainer: see docs/third-party-and-licensing.md.
  */
 
-/**
- * One record of a FASTA file: the header line and the (single-string) sequence.
- */
+/** One record of a FASTA file: the header line and the (single-string) sequence. */
 public class Fasta_Record {
 
-    private String header;  // as read from the file, including the leading '>'
-    private String sequence;
-    private int seqLen;
+  private String header; // as read from the file, including the leading '>'
+  private String sequence;
+  private int seqLen;
 
-
-    public Fasta_Record(String header, String sequence) {
-        this.header = header;
-        this.sequence = sequence;
-        if (sequence == null) {
-            this.seqLen = 0;
-        } else {
-            this.seqLen = sequence.length();
-        }
+  public Fasta_Record(String header, String sequence) {
+    this.header = header;
+    this.sequence = sequence;
+    if (sequence == null) {
+      this.seqLen = 0;
+    } else {
+      this.seqLen = sequence.length();
     }
+  }
 
+  /**
+   * @return the header without its leading character (the '>') and with surrounding whitespace
+   *     trimmed. Note that the first character is dropped unconditionally.
+   */
+  public String getHeader() {
+    return header.substring(1).trim();
+  }
 
-    /**
-     * @return the header without its leading character (the '>') and with surrounding whitespace trimmed.
-     *         Note that the first character is dropped unconditionally.
-     */
-    public String getHeader() {
-        return header.substring(1).trim();
-    }
+  public String getSequence() {
+    return sequence;
+  }
 
+  public int getSeqLen() {
+    return seqLen;
+  }
 
-    public String getSequence() {
-        return sequence;
-    }
+  public void setSeqLen(int seqLen) {
+    this.seqLen = seqLen;
+  }
 
-
-    public int getSeqLen() {
-        return seqLen;
-    }
-
-
-    public void setSeqLen(int seqLen) {
-        this.seqLen = seqLen;
-    }
-
-
-    /**
-     * Prints the record (raw header, including the '>') and sequence to standard output.
-     */
-    public void write_record() {
-        System.out.println(header);
-        System.out.println(sequence);
-    }
+  /** Prints the record (raw header, including the '>') and sequence to standard output. */
+  public void write_record() {
+    System.out.println(header);
+    System.out.println(sequence);
+  }
 }

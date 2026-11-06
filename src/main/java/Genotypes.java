@@ -39,7 +39,6 @@ class Genotypes {
   }
 
   private static void verify_fasta() {
-    if (msa_fasta_filename != null)
-      Param_Checks.require_file_exists(msa_fasta_filename, "--fasta");
+    if (msa_fasta_filename != null) Param_Checks.require_file_exists(msa_fasta_filename, "--fasta");
   }
 }
