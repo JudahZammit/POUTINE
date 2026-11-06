@@ -1,4 +1,6 @@
+import picocli.CommandLine;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 
 /** Genotype input file (vcf or fasta, mutually exclusive). Static state, read via the getters. */
 class Genotypes {
