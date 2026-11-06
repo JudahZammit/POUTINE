@@ -1,4 +1,6 @@
+import picocli.CommandLine;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 
 /** Phenotype, tree and map input files. Static state: picocli sets them, others use the getters. */
 class Other_Input_Files {
@@ -34,5 +36,27 @@ class Other_Input_Files {
 
   static String get_map_filename() {
     return map_filename;
+  }
+
+  public static void verify(CommandLine cmdline) {
+    try {
+      verify_phenos();
+      verify_tree();
+      verify_map();
+    } catch (IllegalArgumentException e) {
+      throw new ParameterException(cmdline, String.format("%n%s", e.getMessage()));
+    }
+  }
+
+  private static void verify_phenos() {
+    Param_Checks.require_file_exists(pheno_filename, "--phenos");
+  }
+
+  private static void verify_tree() {
+    Param_Checks.require_file_exists(newick_filename, "--tree");
+  }
+
+  private static void verify_map() {
+    Param_Checks.require_file_exists(map_filename, "--map");
   }
 }

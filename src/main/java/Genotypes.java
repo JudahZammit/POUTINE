@@ -23,4 +23,23 @@ class Genotypes {
   static String get_msa_fasta_filename() {
     return msa_fasta_filename;
   }
+
+  public static void verify(CommandLine cmdline) {
+    try {
+      verify_vcf();
+      verify_fasta();
+    } catch (IllegalArgumentException e) {
+      throw new ParameterException(cmdline, String.format("%n%s", e.getMessage()));
+    }
+  }
+
+  // --vcf and --fasta are mutually exclusive, so at most one of them is set
+  private static void verify_vcf() {
+    if (vcf_filename != null) Param_Checks.require_file_exists(vcf_filename, "--vcf");
+  }
+
+  private static void verify_fasta() {
+    if (msa_fasta_filename != null)
+      Param_Checks.require_file_exists(msa_fasta_filename, "--fasta");
+  }
 }

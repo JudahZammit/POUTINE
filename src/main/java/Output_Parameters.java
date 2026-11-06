@@ -1,5 +1,7 @@
 import java.io.File;
+import picocli.CommandLine;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 
 /** Output parameters. Static state: picocli sets the values, others read the getters. */
 class Output_Parameters {
@@ -84,5 +86,23 @@ class Output_Parameters {
 
   static boolean get_debug_mode() {
     return debug_mode;
+  }
+
+  public static void verify(CommandLine cmdline) {
+    try {
+      verify_output_dir();
+    } catch (IllegalArgumentException e) {
+      throw new ParameterException(cmdline, String.format("%n%s", e.getMessage()));
+    }
+  }
+
+  // with --timestamp the directory is new, and an unset directory is a new default one
+  private static void verify_output_dir() {
+    if (output_dir != null && !timestamp && output_dir.exists() && !force_overwrite)
+      throw new IllegalArgumentException(
+          String.format(
+              "Directory '%s' already exists.  Use --force-overwrite option to use existing"
+                  + " directory.",
+              output_dir));
   }
 }

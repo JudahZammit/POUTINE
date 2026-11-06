@@ -1,8 +1,14 @@
+import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 
 /** Runtime options. Static state: picocli sets the values, everything else reads the getters. */
 class Runtime_Settings {
+  @Option(
+      names = {"-T", "--threads"},
+      paramLabel = "<# threads>",
+      description = "# Threads used for parallel processing (default: max # logical processors)",
+      required = false)
   // default value := max # logical processors available (# cpu cores and hyperthreading)
   private static int num_threads = Runtime.getRuntime().availableProcessors();
 
@@ -10,18 +16,16 @@ class Runtime_Settings {
     return num_threads;
   }
 
-  @Option(
-      names = {"-T", "--threads"},
-      paramLabel = "<# threads>",
-      description = "# Threads used for parallel processing (default: max # logical processors)",
-      required = false)
-  private static void validate_and_set_thread_option(int user_value) {
-    if (user_value > 0) num_threads = user_value;
-    else
-      throw new ParameterException(
-          Homoplasy_Counter.spec.commandLine(),
-          String.format(
-              "%nInvalid value '%s' for option '--threads': " + "# threads must be > 0",
-              user_value));
+  public static void verify(CommandLine cmdline) {
+    try {
+      verify_threads();
+    } catch (IllegalArgumentException e) {
+      throw new ParameterException(cmdline, String.format("%n%s", e.getMessage()));
+    }
+  }
+
+  private static void verify_threads() {
+    Param_Checks.require_valid_value(
+        num_threads > 0, "--threads", num_threads, "# threads must be > 0");
   }
 }

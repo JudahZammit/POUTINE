@@ -1,5 +1,4 @@
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -65,20 +64,27 @@ class Burden_Test_Options {
     return no_reference;
   }
 
-  static void check_files_exist(CommandLine cmdline) {
-    require_file_exists(cmdline, anno_filename, "--anno-file");
-    require_file_exists(cmdline, setlist_filename, "--set-list");
-    require_file_exists(cmdline, mask_filename, "--mask-def");
+  public static void verify(CommandLine cmdline) {
+    if (!burden) return; // the options are only given together, so none of them is set
+    try {
+      verify_anno_file();
+      verify_setlist();
+      verify_mask();
+    } catch (IllegalArgumentException e) {
+      throw new ParameterException(cmdline, String.format("%n%s", e.getMessage()));
+    }
   }
 
-  private static void require_file_exists(CommandLine cmdline, String filename, String option) {
-    if (!new File(filename).exists())
-      throw new ParameterException(
-          cmdline,
-          String.format(
-              "%nFile '%s' for option '%s' cannot be found.  Please make sure the correct path"
-                  + " and file name are specified.",
-              filename, option));
+  private static void verify_anno_file() {
+    Param_Checks.require_file_exists(anno_filename, "--anno-file");
+  }
+
+  private static void verify_setlist() {
+    Param_Checks.require_file_exists(setlist_filename, "--set-list");
+  }
+
+  private static void verify_mask() {
+    Param_Checks.require_file_exists(mask_filename, "--mask-def");
   }
 
   static void write_log(BufferedWriter log) throws IOException {
