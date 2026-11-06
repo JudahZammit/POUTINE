@@ -1,9 +1,11 @@
+package params;
+
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 
 /** Phenotype, tree and map input files. Static state: picocli sets them, others use the getters. */
-class Other_Input_Files {
+public class Other_Input_Files {
   @Option(
       names = {"-p", "--phenos"},
       description =
@@ -12,7 +14,7 @@ class Other_Input_Files {
       required = true)
   private static String pheno_filename;
 
-  static String get_pheno_filename() {
+  public static String get_pheno_filename() {
     return pheno_filename;
   }
 
@@ -22,7 +24,7 @@ class Other_Input_Files {
       required = true)
   private static String newick_filename;
 
-  static String get_newick_filename() {
+  public static String get_newick_filename() {
     return newick_filename;
   }
 
@@ -34,7 +36,7 @@ class Other_Input_Files {
       required = true)
   private static String map_filename;
 
-  static String get_map_filename() {
+  public static String get_map_filename() {
     return map_filename;
   }
 

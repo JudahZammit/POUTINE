@@ -1,9 +1,11 @@
+package params;
+
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 
 /** Runtime options. Static state: picocli sets the values, everything else reads the getters. */
-class Runtime_Settings {
+public class Runtime_Settings {
   @Option(
       names = {"-T", "--threads"},
       paramLabel = "<# threads>",
@@ -12,7 +14,7 @@ class Runtime_Settings {
   // default value := max # logical processors available (# cpu cores and hyperthreading)
   private static int num_threads = Runtime.getRuntime().availableProcessors();
 
-  static int get_num_threads() {
+  public static int get_num_threads() {
     return num_threads;
   }
 

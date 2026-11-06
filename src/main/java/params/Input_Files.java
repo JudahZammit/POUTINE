@@ -1,8 +1,10 @@
+package params;
+
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 
 /** Input files: genotypes plus the phenotype, tree and map files. Static state, read by getters. */
-class Input_Files {
+public class Input_Files {
   @ArgGroup(
       exclusive = true,
       multiplicity = "1",
@@ -10,7 +12,7 @@ class Input_Files {
       heading = "@|bg(213) %nInput genotype file: vcf or fasta format%n|@")
   private static Genotypes genotypes;
 
-  static Genotypes get_genotypes() {
+  public static Genotypes get_genotypes() {
     return genotypes;
   }
 
@@ -21,7 +23,7 @@ class Input_Files {
       heading = "@|bg(123) %nOther input files%n|@")
   private static Other_Input_Files otherInputFiles;
 
-  static Other_Input_Files get_other_input_files() {
+  public static Other_Input_Files get_other_input_files() {
     return otherInputFiles;
   }
 

@@ -1,17 +1,19 @@
+package params;
+
 import java.io.File;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 
 /** Output parameters. Static state: picocli sets the values, others read the getters. */
-class Output_Parameters {
+public class Output_Parameters {
   @Option(
       names = {"-d", "--out-dir"},
       description = "Output directory for all output files (default: poutine_session_current_time)",
       required = false)
   private static File output_dir; // default is relative to the current dir
 
-  static File get_output_dir() {
+  public static File get_output_dir() {
     return output_dir;
   }
 
@@ -23,7 +25,7 @@ class Output_Parameters {
       required = false)
   private static File output_file;
 
-  static File get_output_file() {
+  public static File get_output_file() {
     return output_file;
   }
 
@@ -35,7 +37,7 @@ class Output_Parameters {
       required = false)
   private static File log_file;
 
-  static File get_log_file() {
+  public static File get_log_file() {
     return log_file;
   }
 
@@ -47,7 +49,7 @@ class Output_Parameters {
       required = false)
   private static File anc_recon_dir; // default is a subdirectory of output_dirname
 
-  static File get_anc_recon_dir() {
+  public static File get_anc_recon_dir() {
     return anc_recon_dir;
   }
 
@@ -59,7 +61,7 @@ class Output_Parameters {
       required = false)
   private static boolean timestamp = false;
 
-  static boolean get_timestamp() {
+  public static boolean get_timestamp() {
     return timestamp;
   }
 
@@ -71,7 +73,7 @@ class Output_Parameters {
       required = false)
   private static boolean force_overwrite = false;
 
-  static boolean get_force_overwrite() {
+  public static boolean get_force_overwrite() {
     return force_overwrite;
   }
 
@@ -84,7 +86,7 @@ class Output_Parameters {
       required = false)
   private static boolean debug_mode = false;
 
-  static boolean get_debug_mode() {
+  public static boolean get_debug_mode() {
     return debug_mode;
   }
 

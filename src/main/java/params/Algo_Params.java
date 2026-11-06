@@ -1,3 +1,5 @@
+package params;
+
 import java.util.Random;
 
 import picocli.CommandLine;
@@ -5,7 +7,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 
 /** Algorithm parameters. Static state: picocli sets the values, others read the getters. */
-class Algo_Params {
+public class Algo_Params {
   @Option(
       names = {"-r", "--replicates"},
       paramLabel = "<# replicates>",
@@ -14,7 +16,7 @@ class Algo_Params {
       order = 1)
   private static int m = 100000; // default value
 
-  static int get_m() {
+  public static int get_m() {
     return m;
   }
 
@@ -28,7 +30,7 @@ class Algo_Params {
   // those without any homoplasic mutations on either allele
   private static int min_hcount = 1;
 
-  static int get_min_hcount() {
+  public static int get_min_hcount() {
     return min_hcount;
   }
 
@@ -41,7 +43,7 @@ class Algo_Params {
       order = 3)
   private static boolean use_precomputed_anc_recon = false;
 
-  static boolean get_use_precomputed_anc_recon() {
+  public static boolean get_use_precomputed_anc_recon() {
     return use_precomputed_anc_recon;
   }
 
@@ -57,7 +59,7 @@ class Algo_Params {
   // default value := random seed (always logged so that any session can be repeated)
   private static int rng_seed = new Random().nextInt(Integer.MAX_VALUE);
 
-  static int get_rng_seed() {
+  public static int get_rng_seed() {
     return rng_seed;
   }
 

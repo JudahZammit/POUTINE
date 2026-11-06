@@ -1,3 +1,5 @@
+package params;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 
@@ -6,7 +8,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 
 /** Burden test options (regenie format). Static state: get_burden() says if they are in use. */
-class Burden_Test_Options {
+public class Burden_Test_Options {
   @Option(
       names = {"--anno-file"},
       description =
@@ -15,7 +17,7 @@ class Burden_Test_Options {
       required = true)
   private static String anno_filename;
 
-  static String get_anno_filename() {
+  public static String get_anno_filename() {
     return anno_filename;
   }
 
@@ -27,7 +29,7 @@ class Burden_Test_Options {
       required = true)
   private static String setlist_filename;
 
-  static String get_setlist_filename() {
+  public static String get_setlist_filename() {
     return setlist_filename;
   }
 
@@ -39,7 +41,7 @@ class Burden_Test_Options {
       required = true)
   private static String mask_filename;
 
-  static String get_mask_filename() {
+  public static String get_mask_filename() {
     return mask_filename;
   }
 
@@ -49,7 +51,7 @@ class Burden_Test_Options {
       required = true)
   private static boolean burden;
 
-  static boolean get_burden() {
+  public static boolean get_burden() {
     return burden;
   }
 
@@ -61,7 +63,7 @@ class Burden_Test_Options {
               + " variant matches the reference.")
   private static boolean no_reference = false;
 
-  static boolean get_no_reference() {
+  public static boolean get_no_reference() {
     return no_reference;
   }
 
@@ -88,7 +90,7 @@ class Burden_Test_Options {
     Param_Checks.require_file_exists(mask_filename, "--mask-def");
   }
 
-  static void write_log(BufferedWriter log) throws IOException {
+  public static void write_log(BufferedWriter log) throws IOException {
     log.write(burden ? describe() : "burden testing: not in use");
     log.newLine();
   }
