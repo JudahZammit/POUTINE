@@ -267,6 +267,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // each node's alleles as differences from its parent (homoplasies are counted from these)
     Sequence_Diffs seq_diffs = new Sequence_Diffs(seg_sites, tree);
+    seg_sites = null; // the full sequences are no longer needed, so they can be garbage collected
     System.out.printf("structures complete.%n");
 
     // homoplasy counts
