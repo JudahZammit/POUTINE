@@ -13,8 +13,6 @@
  * <p>You should have received a copy of the GNU General Public License along with this program. If
  * not, see <https://www.gnu.org/licenses/>.
  */
-import static java.nio.file.StandardOpenOption.APPEND;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -26,6 +24,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.nio.file.Files;
+import static java.nio.file.StandardOpenOption.APPEND;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -49,6 +48,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+
 import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
 import org.apache.commons.math3.stat.inference.BinomialTest;
 import org.gersteinlab.coevolution.core.data.DataFormatException;
@@ -56,6 +56,7 @@ import org.gersteinlab.coevolution.core.data.NewickTree;
 import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 import org.gersteinlab.coevolution.core.io.NewickTreeReader;
 import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
+
 import params.Algo_Params;
 import params.Burden_Test_Options;
 import params.Input_Files;
@@ -240,18 +241,6 @@ public class Homoplasy_Counter implements Callable<Integer> {
     // read in ancestral genotypes
     HashMap<String, char[]> seg_sites = build_seg_sites(ancestral_fasta);
 
-    // group in preparation for the burden test
-    if (Burden_Test_Options.get_burden()) {
-      seg_sites =
-          Gene_Set_Aggregator.aggregate(
-              seg_sites,
-              Input_Files.get_other_input_files().get_map_filename(),
-              Burden_Test_Options.get_anno_filename(),
-              Burden_Test_Options.get_setlist_filename(),
-              Burden_Test_Options.get_mask_filename(),
-              Burden_Test_Options.get_no_reference());
-    }
-
     // PLINK map file that contains physical positions in the order of the ped file used to create
     // input files for CFML
     int[] physical_poss = get_physical_positions();
@@ -269,6 +258,18 @@ public class Homoplasy_Counter implements Callable<Integer> {
     Sequence_Diffs seq_diffs = new Sequence_Diffs(seg_sites, tree);
     seg_sites = null; // the full sequences are no longer needed, so they can be garbage collected
     System.out.printf("structures complete.%n");
+
+    // group in preparation for the burden test
+    if (Burden_Test_Options.get_burden()) {
+      seq_diffs =
+          Gene_Set_Aggregator.aggregate(
+              seq_diffs,
+              Input_Files.get_other_input_files().get_map_filename(),
+              Burden_Test_Options.get_anno_filename(),
+              Burden_Test_Options.get_setlist_filename(),
+              Burden_Test_Options.get_mask_filename(),
+              Burden_Test_Options.get_no_reference());
+    }
 
     // homoplasy counts
     ArrayList<Homoplasy_Events> all_events =
@@ -1257,8 +1258,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
     add_MRCA(root_name, seq_diffs.root_allele(site), allele1, allele1_MRCAs, allele2_MRCAs);
 
     for (Sequence_Diffs.Diff diff : seq_diffs.diffs_at(site)) {
-      if (diff.on_root_child_edge() || !is_nucleotide(diff.allele())) continue;
-      add_MRCA(diff.node_name(), diff.allele(), allele1, allele1_MRCAs, allele2_MRCAs);
+      if (diff.root_child() || !is_nucleotide(diff.curr_allele())) continue;
+      add_MRCA(diff.node_name(), diff.curr_allele(), allele1, allele1_MRCAs, allele2_MRCAs);
     }
   }
 

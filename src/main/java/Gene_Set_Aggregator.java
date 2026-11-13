@@ -5,15 +5,15 @@ import java.util.List;
 
 public class Gene_Set_Aggregator {
 
-  public static HashMap<String, char[]> aggregate(
-      HashMap<String, char[]> seg_sites,
+  public static Sequence_Diffs aggregate(
+      Sequence_Diffs seq_diffs,
       String fasta_map_filename,
       String anno_filename,
       String setlist_filename,
       String mask_filename,
       boolean no_reference) {
 
-    return seg_sites;
+    return seq_diffs;
   }
 
   private static HashMap<Integer, String> get_fasta_map(String fasta_map_filename)
