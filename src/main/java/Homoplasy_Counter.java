@@ -59,6 +59,7 @@ import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
 
 import diffs.Aggregated_Sequence_Diffs;
 import diffs.Sequence_Diffs;
+import inputs.Site_Map;
 import params.Algo_Params;
 import params.Burden_Test_Options;
 import params.Input_Files;
@@ -245,7 +246,8 @@ public class Homoplasy_Counter implements Callable<Integer> {
 
     // PLINK map file that contains physical positions in the order of the ped file used to create
     // input files for CFML
-    int[] physical_poss = get_physical_positions();
+    Site_Map site_map = read_site_map();
+    int[] physical_poss = site_map.positions();
 
     // check for mismatch of # seg sites between ancestral genotype file and input positions file
     check_num_seg_sites(seg_sites, physical_poss);
@@ -996,29 +998,15 @@ public class Homoplasy_Counter implements Callable<Integer> {
     return tree;
   }
 
-  /**
-   * // TODO: rewrite this in a functional programming style using Streams and
-   * BufferedReader.lines(). How does this compare to the imperative programming version?
-   *
-   * <p>Process PLINK's .map file and extract physical positions for each seg site. The position
-   * should always be the last column in the .map file (the # of cols may vary according to PLINK
-   * usage)
-   */
-  private int[] get_physical_positions() {
-    ArrayList<Integer> poss = new ArrayList<>();
+  /** Reads PLINK's .map file: the physical position of each seg site. */
+  private Site_Map read_site_map() {
+    Site_Map site_map = null;
 
-    try (BufferedReader br =
-        new BufferedReader(
-            new FileReader(Input_Files.get_other_input_files().get_map_filename()))) {
-      String currline;
-      while ((currline = br.readLine()) != null) {
-        String[] cols = currline.split("\t");
-        int p = Integer.parseInt(cols[cols.length - 1]);
-        poss.add(p);
-      }
+    try {
+      site_map = new Site_Map(Input_Files.get_other_input_files().get_map_filename());
 
       outputOptions.log.write(
-          String.format("%nplink map file: # segregating sites = " + poss.size() + "%n"));
+          String.format("%nplink map file: # segregating sites = " + site_map.num_sites() + "%n"));
       outputOptions.log.flush();
     } catch (Exception e) {
       System.out.printf(
@@ -1030,7 +1018,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
       System.exit(-1);
     }
 
-    return poss.stream().mapToInt(i -> i).toArray();
+    return site_map;
   }
 
   /**
