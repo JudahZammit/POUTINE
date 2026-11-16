@@ -1,3 +1,5 @@
+package diffs;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -10,22 +12,22 @@ import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 
 public class Sequence_Diffs {
 
-  private String root_name;
-  private char[] root_seq;
-  private HashSet<String> root_child_names;
-  private HashSet<String> leaf_names;
-  private int[][] leaf_allele_counts;
-  private static final Map<Character, Integer> ALLELE_INDEX =
+  protected String root_name;
+  protected char[] root_seq;
+  protected HashSet<String> root_child_names;
+  protected HashSet<String> leaf_names;
+  protected int[][] leaf_allele_counts;
+  protected static final Map<Character, Integer> ALLELE_INDEX =
       Map.of('A', 0, 'T', 1, 'G', 2, 'C', 3);
 
   // The list of sites that are different than the parent of a node a particular id
   // For each site, keep a list of nodes that differ from their parent at that site, and the allele
   // of that node
-  private int[][] diff_nodes;
-  private char[][] curr_alleles;
-  private char[][] prev_alleles;
-  private Map<String, Integer> node_index;
-  private String[] node_names;
+  protected int[][] diff_nodes;
+  protected char[][] curr_alleles;
+  protected char[][] prev_alleles;
+  protected Map<String, Integer> node_index;
+  protected String[] node_names;
 
   public Sequence_Diffs(HashMap<String, char[]> seg_sites, NewickTree tree) {
     parse_root(tree.getRoot(), seg_sites);
@@ -34,6 +36,9 @@ public class Sequence_Diffs {
     create_node_index(seg_sites.keySet());
     parse_diffs(tree, seg_sites);
   }
+
+  /** For subclasses, which fill in the fields themselves. */
+  protected Sequence_Diffs() {}
 
   private void create_node_index(Collection<String> node_names) {
     this.node_index = new HashMap<>();

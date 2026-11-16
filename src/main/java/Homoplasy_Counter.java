@@ -57,6 +57,8 @@ import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 import org.gersteinlab.coevolution.core.io.NewickTreeReader;
 import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
 
+import diffs.Aggregated_Sequence_Diffs;
+import diffs.Sequence_Diffs;
 import params.Algo_Params;
 import params.Burden_Test_Options;
 import params.Input_Files;
@@ -262,7 +264,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     // group in preparation for the burden test
     if (Burden_Test_Options.get_burden()) {
       seq_diffs =
-          Gene_Set_Aggregator.aggregate(
+          new Aggregated_Sequence_Diffs(
               seq_diffs,
               Input_Files.get_other_input_files().get_map_filename(),
               Burden_Test_Options.get_anno_filename(),
