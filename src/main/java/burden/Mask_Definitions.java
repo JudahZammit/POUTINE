@@ -35,12 +35,16 @@ public class Mask_Definitions {
     return name;
   }
 
-  /** @return the variant types the mask keeps. */
+  /**
+   * @return the variant types the mask keeps.
+   */
   public Set<String> types() {
     return types;
   }
 
-  /** @return the names of the masks after the first, which are ignored. */
+  /**
+   * @return the names of the masks after the first, which are ignored.
+   */
   public List<String> unused_names() {
     return unused_names;
   }

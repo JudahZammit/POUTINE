@@ -5,9 +5,9 @@ import java.io.FileReader;
 import java.io.IOException;
 
 /**
- * The map file: one line per segregating site, in the order of the fasta columns. Tab-delimited with
- * no header. The last column is the physical position; the other columns are not used. A site is
- * identified by its line number (0-based).
+ * The map file: one line per segregating site, in the order of the fasta columns. Tab-delimited
+ * with no header. The last column is the physical position; the other columns are not used. A site
+ * is identified by its line number (0-based).
  */
 public class Site_Map {
   private final int[] positions;

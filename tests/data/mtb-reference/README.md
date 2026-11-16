@@ -36,7 +36,7 @@ Sample names are consistent across the FASTA, tree and phenotype files (124 in e
 
 ## Burden test command line options
 
-The inputs for `--anno-file`, `--set-list` and `--mask-def` (format in the [main README](../../../README.md)) were generated for this dataset as follows. poutine does not parse them yet.
+The inputs for `--anno-file`, `--set-list` and `--mask-def` (format in the [main README](../../../README.md)) were generated for this dataset as follows. poutine reads and checks them but does not use them yet.
 
 1. Converted the fasta and map files to a haploid VCF against the H37Rv reference (NC_000962.3), because SnpEff takes VCF input (poutine's own `--vcf` option is not in use).
 2. Ran [SnpEff](https://pcingola.github.io/SnpEff/) 5.4c (build 2026-02-23) with its `Mycobacterium_tuberculosis_h37rv` database: `snpEff -ud 100 -lof -no-intergenic`.

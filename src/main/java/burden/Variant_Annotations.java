@@ -22,7 +22,8 @@ public class Variant_Annotations {
 
   private void add(String[] columns) {
     Variant_Id id = Variant_Id.parse(columns[0]);
-    Annotation annotation = new Annotation(id.ref_allele(), id.alt_allele(), columns[1], columns[2]);
+    Annotation annotation =
+        new Annotation(id.ref_allele(), id.alt_allele(), columns[1], columns[2]);
     if (by_position.putIfAbsent(id.position(), annotation) != null) {
       throw new IllegalArgumentException("duplicate position " + id.position());
     }
@@ -32,7 +33,9 @@ public class Variant_Annotations {
     return by_position.size();
   }
 
-  /** @return the annotation of the variant at this position, or null if there is none. */
+  /**
+   * @return the annotation of the variant at this position, or null if there is none.
+   */
   public Annotation annotation(int position) {
     return by_position.get(position);
   }
