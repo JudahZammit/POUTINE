@@ -57,6 +57,9 @@ import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 import org.gersteinlab.coevolution.core.io.NewickTreeReader;
 import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
 
+import burden.Gene_Sets;
+import burden.Mask_Definitions;
+import burden.Variant_Annotations;
 import diffs.Aggregated_Sequence_Diffs;
 import diffs.Sequence_Diffs;
 import inputs.Site_Map;
@@ -174,6 +177,21 @@ public class Homoplasy_Counter implements Callable<Integer> {
     log_cmdline_global_vars();
     String input_newick = read_and_validate_input_newick_format();
 
+    // the burden test files are read now so that a malformed file fails before ancestral recon
+    Variant_Annotations annotations = null;
+    Gene_Sets gene_sets = null;
+    Mask_Definitions masks = null;
+    if (Burden_Test_Options.get_burden()) {
+      try {
+        annotations = new Variant_Annotations(Burden_Test_Options.get_anno_filename());
+        gene_sets = new Gene_Sets(Burden_Test_Options.get_setlist_filename());
+        masks = new Mask_Definitions(Burden_Test_Options.get_mask_filename());
+      } catch (IOException | IllegalArgumentException e) {
+        exit_on_burden_file_error(e);
+      }
+      log_burden_files(annotations, gene_sets, masks);
+    }
+
     System.out.printf(
         Ansi.AUTO.string(
             "@|fg(213) %nStarting poutine session: "
@@ -268,10 +286,10 @@ public class Homoplasy_Counter implements Callable<Integer> {
       seq_diffs =
           new Aggregated_Sequence_Diffs(
               seq_diffs,
-              Input_Files.get_other_input_files().get_map_filename(),
-              Burden_Test_Options.get_anno_filename(),
-              Burden_Test_Options.get_setlist_filename(),
-              Burden_Test_Options.get_mask_filename(),
+              site_map,
+              annotations,
+              gene_sets,
+              masks,
               Burden_Test_Options.get_no_reference());
     }
 
@@ -1019,6 +1037,38 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
     return site_map;
+  }
+
+  /** The message names the file and line of a malformed burden test file. */
+  private void exit_on_burden_file_error(Exception e) {
+    System.out.printf(
+        Ansi.AUTO.string(
+            "@|red,bold %nAn error has occurred while reading the burden test files: %s. Please"
+                + " see the stack trace in the log file for more information on this error.%n|@"),
+        e.getMessage());
+    e.printStackTrace();
+    System.exit(-1);
+  }
+
+  /** Logs what was read from the burden test files, and warns about masks that are ignored. */
+  private void log_burden_files(
+      Variant_Annotations annotations, Gene_Sets gene_sets, Mask_Definitions masks)
+      throws IOException {
+    outputOptions.log.write(
+        String.format(
+            "%nburden test files: %d variants annotated, %d genes in the set list, mask '%s' keeps"
+                + " %d variant types%n",
+            annotations.size(), gene_sets.size(), masks.name(), masks.types().size()));
+
+    if (!masks.unused_names().isEmpty()) {
+      String warning =
+          String.format(
+              "Warning: only the first mask, '%s', is used. Ignoring: %s.",
+              masks.name(), String.join(", ", masks.unused_names()));
+      System.out.printf(Ansi.AUTO.string("@|red,bold %n%s%n|@"), warning);
+      outputOptions.log.write(String.format("%n%s%n", warning));
+    }
+    outputOptions.log.flush();
   }
 
   /**
