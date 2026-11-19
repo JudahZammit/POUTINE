@@ -1,7 +1,9 @@
 package burden;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,7 +16,7 @@ public class Variant_Annotations {
   /** An annotated variant. The alleles come from its id. */
   public record Annotation(char ref_allele, char alt_allele, String gene, String type) {}
 
-  private final Map<Integer, Annotation> by_position = new LinkedHashMap<>();
+  private final Map<Integer, List<Annotation>> by_position = new LinkedHashMap<>();
 
   public Variant_Annotations(String filename) throws IOException {
     Table_Reader.for_each_row(filename, 3, this::add);
@@ -24,9 +26,7 @@ public class Variant_Annotations {
     Variant_Id id = Variant_Id.parse(columns[0]);
     Annotation annotation =
         new Annotation(id.ref_allele(), id.alt_allele(), columns[1], columns[2]);
-    if (by_position.putIfAbsent(id.position(), annotation) != null) {
-      throw new IllegalArgumentException("duplicate position " + id.position());
-    }
+    by_position.computeIfAbsent(id.position(), p -> new ArrayList<>()).add(annotation);
   }
 
   public int size() {
@@ -34,9 +34,9 @@ public class Variant_Annotations {
   }
 
   /**
-   * @return the annotation of the variant at this position, or null if there is none.
+   * @return the annotations at this position; empty if there are none.
    */
-  public Annotation annotation(int position) {
-    return by_position.get(position);
+  public List<Annotation> annotations(int position) {
+    return by_position.getOrDefault(position, List.of());
   }
 }

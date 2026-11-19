@@ -291,6 +291,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
               gene_sets,
               masks,
               Burden_Test_Options.get_no_reference());
+      physical_poss = gene_sets.positions(); // the sites are now genes
     }
 
     // homoplasy counts
@@ -1058,7 +1059,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         String.format(
             "%nburden test files: %d variants annotated, %d genes in the set list, mask '%s' keeps"
                 + " %d variant types%n",
-            annotations.size(), gene_sets.size(), masks.name(), masks.types().size()));
+            annotations.size(), gene_sets.num_genes(), masks.name(), masks.types().size()));
 
     if (!masks.unused_names().isEmpty()) {
       String warning =

@@ -34,11 +34,20 @@ public class Gene_Sets {
     return Stream.of(variant_ids.split(",")).map(id -> Variant_Id.parse(id).position()).toList();
   }
 
-  public int size() {
+  public int num_genes() {
     return by_name.size();
   }
 
   public Collection<Gene_Set> all() {
     return by_name.values();
+  }
+
+  public Gene_Set get(String name) {
+    return by_name.get(name);
+  }
+
+  /** The gene positions, in the same order as {@link #all()} (the gene index order). */
+  public int[] positions() {
+    return all().stream().mapToInt(Gene_Set::position).toArray();
   }
 }
