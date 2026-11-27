@@ -5,6 +5,8 @@
  * authorship to be confirmed with the previous maintainer: see docs/third-party-and-licensing.md.
  */
 
+package dso.alignment;
+
 import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.FileReader;

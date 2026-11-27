@@ -1,10 +1,10 @@
 package diffs;
 
+import dso.alignment.Site_Map;
 import dso.burden.Gene_Sets;
 import dso.burden.Mask_Definitions;
 import dso.burden.Variant_Annotations;
 import dso.burden.Variant_Annotations.Annotation;
-import dso.inputs.Site_Map;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;

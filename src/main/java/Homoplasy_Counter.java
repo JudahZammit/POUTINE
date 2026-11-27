@@ -59,10 +59,12 @@ import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
 
 import diffs.Aggregated_Sequence_Diffs;
 import diffs.Sequence_Diffs;
+import dso.alignment.Fasta_Manager;
+import dso.alignment.Fasta_Record;
+import dso.alignment.Site_Map;
 import dso.burden.Gene_Sets;
 import dso.burden.Mask_Definitions;
 import dso.burden.Variant_Annotations;
-import dso.inputs.Site_Map;
 import params.Algo_Params;
 import params.Burden_Test_Options;
 import params.Input_Files;

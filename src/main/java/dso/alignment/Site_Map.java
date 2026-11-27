@@ -1,4 +1,4 @@
-package dso.inputs;
+package dso.alignment;
 
 import java.io.BufferedReader;
 import java.io.FileReader;

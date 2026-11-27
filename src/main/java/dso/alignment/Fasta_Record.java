@@ -5,6 +5,8 @@
  * authorship to be confirmed with the previous maintainer: see docs/third-party-and-licensing.md.
  */
 
+package dso.alignment;
+
 /** One record of a FASTA file: the header line and the (single-string) sequence. */
 public class Fasta_Record {
 
