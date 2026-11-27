@@ -1,0 +1,4 @@
+X_100:C:T geneA missense_variant
+X_200:A:G geneA missense_variant
+X_300:G:T geneA intron_variant
+X_400:T:C geneB missense_variant
