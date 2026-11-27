@@ -2,10 +2,12 @@ package diffs;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.gersteinlab.coevolution.core.data.NewickTree;
 import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 
@@ -180,6 +182,10 @@ public class Sequence_Diffs {
     return counts;
   }
 
+  public Set<String> leaf_names() {
+    return Collections.unmodifiableSet(leaf_names);
+  }
+
   public String root_name() {
     return root_name;
   }
@@ -190,6 +196,7 @@ public class Sequence_Diffs {
 
   public record Diff(String node_name, char curr_allele, char prev_allele, boolean root_child) {}
 
+  // Returns a list of change events at a particular site.
   public List<Diff> diffs_at(int site) {
     List<Diff> diffs = new ArrayList<>();
     int[] site_node_diffs = diff_nodes[site];

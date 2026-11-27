@@ -13,6 +13,16 @@
  * <p>You should have received a copy of the GNU General Public License along with this program. If
  * not, see <https://www.gnu.org/licenses/>.
  */
+import static java.nio.file.StandardOpenOption.APPEND;
+
+import diffs.Aggregated_Sequence_Diffs;
+import diffs.Sequence_Diffs;
+import dso.alignment.Fasta_Manager;
+import dso.alignment.Fasta_Record;
+import dso.alignment.Site_Map;
+import dso.burden.Gene_Sets;
+import dso.burden.Mask_Definitions;
+import dso.burden.Variant_Annotations;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -24,7 +34,6 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.nio.file.Files;
-import static java.nio.file.StandardOpenOption.APPEND;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -48,7 +57,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
-
 import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
 import org.apache.commons.math3.stat.inference.BinomialTest;
 import org.gersteinlab.coevolution.core.data.DataFormatException;
@@ -56,15 +64,6 @@ import org.gersteinlab.coevolution.core.data.NewickTree;
 import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 import org.gersteinlab.coevolution.core.io.NewickTreeReader;
 import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
-
-import diffs.Aggregated_Sequence_Diffs;
-import diffs.Sequence_Diffs;
-import dso.alignment.Fasta_Manager;
-import dso.alignment.Fasta_Record;
-import dso.alignment.Site_Map;
-import dso.burden.Gene_Sets;
-import dso.burden.Mask_Definitions;
-import dso.burden.Variant_Annotations;
 import params.Algo_Params;
 import params.Burden_Test_Options;
 import params.Input_Files;
@@ -297,8 +296,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     }
 
     // homoplasy counts
-    ArrayList<Homoplasy_Events> all_events =
-        count_all_homoplasy_events(tree, seq_diffs, physical_poss);
+    ArrayList<Homoplasy_Events> all_events = count_all_homoplasy_events(seq_diffs, physical_poss);
 
     assoc(all_events, phenos);
 
@@ -1121,7 +1119,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
    * <p>Process 1 seg site at a time (i.e. count homoplasy events for 1 seg site at a time).
    */
   private ArrayList<Homoplasy_Events> count_all_homoplasy_events(
-      NewickTree tree, Sequence_Diffs seq_diffs, int[] physical_poss) {
+      Sequence_Diffs seq_diffs, int[] physical_poss) {
 
     System.out.printf(Ansi.AUTO.string("@|fg(222) %nCounting all homoplasy events . . . |@"));
 
@@ -1135,8 +1133,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
     int more_than_four_alleles_detected = 0;
     ArrayList<Homoplasy_Events> all_events = new ArrayList<>();
 
-    List<NewickTreeNode> leaves = tree.getLeafNodes();
-    HashSet<String> leaf_names = get_leaf_names(leaves);
+    Set<String> leaf_names = seq_diffs.leaf_names();
 
     for (int i = 0; i < physical_poss.length; i++) { // for (each seg site)
       int segsite_ID = i + 1; // this ID is 1-based, e.g. segsite_ID = 10 is the 10th segsite
@@ -1220,12 +1217,11 @@ public class Homoplasy_Counter implements Callable<Integer> {
   private Map<Character, Integer> get_alleles(Sequence_Diffs seq_diffs, int site) {
     // a new HashMap with only [ACGT] keys always lists the alleles in the order A, C, T, G
     Map<Character, Integer> alleles = new HashMap<>();
-    seq_diffs
-        .leaf_allele_counts(site)
-        .forEach((allele, num_leaves) -> {
-          // ignore all missing genotype data (any geno codings outside of [ACGT])
-          if (is_nucleotide(allele)) alleles.put(allele, num_leaves);
-        });
+    for (Map.Entry<Character, Integer> entry : seq_diffs.leaf_allele_counts(site).entrySet()) {
+      char allele = entry.getKey();
+      // ignore all missing genotype data (any geno codings outside of [ACGT])
+      if (is_nucleotide(allele)) alleles.put(allele, entry.getValue());
+    }
 
     return alleles;
   }
@@ -1263,7 +1259,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
       int segsite_ID,
       int p,
       Map<Character, Integer> alleles,
-      HashSet<String> leaf_names) {
+      Set<String> leaf_names) {
     HashMap<String, HashSet<String>> allele1_MRCAs =
         new HashMap<>(); // key := node name of MRCA, value := not used (null)
     HashMap<String, HashSet<String>> allele2_MRCAs = new HashMap<>(); // same as above
@@ -4485,7 +4481,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
         int segsite_ID,
         int p,
         HashMap<String, Character> major_minor_alleles,
-        HashSet<String> leaf_names) {
+        Set<String> leaf_names) {
       this.allele1 = major_minor_alleles.get("a1"); // a1 := major
       this.allele2 = major_minor_alleles.get("a2"); // a2 := minor
       this.allele1_MRCAs = allele1_MRCAs;
@@ -4524,7 +4520,7 @@ public class Homoplasy_Counter implements Callable<Integer> {
      *
      * @param leaf_names
      */
-    private void calc_num_extant_homoplasic_mutations(HashSet<String> leaf_names) {
+    private void calc_num_extant_homoplasic_mutations(Set<String> leaf_names) {
       // Option #1:  Most efficient way: use HashSet of leaf names, iterate through homoplasic
       // mutations only (instead of all samples) for fewer hashes
       // for each a1 homoplasic mutation by node name

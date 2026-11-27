@@ -100,13 +100,13 @@ public class Aggregated_Sequence_Diffs extends Sequence_Diffs {
     Set<String> valid_types = this.masks.types();
 
     for (Annotation var_annot : var_annotations) {
-      if (!this.no_reference) {
-        out_annotations.add(
-            new Annotation(
-                var_annot.alt_allele(), var_annot.ref_allele(), var_annot.gene(), "reference"));
-      }
       if (valid_types.contains(var_annot.type())) {
         out_annotations.add(var_annot);
+        if (!this.no_reference) {
+          out_annotations.add(
+              new Annotation(
+                  var_annot.alt_allele(), var_annot.ref_allele(), var_annot.gene(), "reference"));
+        }
       }
     }
 
