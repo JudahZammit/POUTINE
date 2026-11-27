@@ -1,4 +1,4 @@
-package burden;
+package dso.burden;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 
 /**
  * Reads the burden test files (--anno-file, --set-list, --mask-def): space-delimited, no header,
- * blank lines skipped. The map file is not read here (see inputs.Site_Map).
+ * blank lines skipped. The map file is not read here (see dso.inputs.Site_Map).
  */
 class Table_Reader {
 

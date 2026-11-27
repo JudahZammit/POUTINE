@@ -57,12 +57,12 @@ import org.gersteinlab.coevolution.core.data.NewickTreeNode;
 import org.gersteinlab.coevolution.core.io.NewickTreeReader;
 import org.gersteinlab.coevolution.core.io.NewickTreeTokenizer;
 
-import burden.Gene_Sets;
-import burden.Mask_Definitions;
-import burden.Variant_Annotations;
 import diffs.Aggregated_Sequence_Diffs;
 import diffs.Sequence_Diffs;
-import inputs.Site_Map;
+import dso.burden.Gene_Sets;
+import dso.burden.Mask_Definitions;
+import dso.burden.Variant_Annotations;
+import dso.inputs.Site_Map;
 import params.Algo_Params;
 import params.Burden_Test_Options;
 import params.Input_Files;

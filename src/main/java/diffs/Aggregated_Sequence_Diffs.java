@@ -1,17 +1,15 @@
 package diffs;
 
+import dso.burden.Gene_Sets;
+import dso.burden.Mask_Definitions;
+import dso.burden.Variant_Annotations;
+import dso.burden.Variant_Annotations.Annotation;
+import dso.inputs.Site_Map;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import burden.Gene_Sets;
-import burden.Mask_Definitions;
-import burden.Variant_Annotations;
-import burden.Variant_Annotations.Annotation;
-import inputs.Site_Map;
-
-/** Sequence_Diffs after gene-set aggregation. Stub: it only copies the base for now. */
 public class Aggregated_Sequence_Diffs extends Sequence_Diffs {
 
   private final int num_genes;
@@ -25,7 +23,6 @@ public class Aggregated_Sequence_Diffs extends Sequence_Diffs {
   private final Site_Map site_map;
   private final String[] gene_names;
 
-  /** Shares the base's arrays; do not use the base afterwards. */
   public Aggregated_Sequence_Diffs(
       Sequence_Diffs base,
       Site_Map site_map,
@@ -151,7 +148,6 @@ public class Aggregated_Sequence_Diffs extends Sequence_Diffs {
     return false;
   }
 
-  /** Kept simple: the leaf diffs of a gene are its modified count, the other leaves are not. */
   private void fill_leaf_allele_counts() {
     this.leaf_allele_counts = new int[this.num_genes][ALLELE_INDEX.size()];
 

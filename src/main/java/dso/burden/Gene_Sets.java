@@ -1,4 +1,4 @@
-package burden;
+package dso.burden;
 
 import java.io.IOException;
 import java.util.Collection;

@@ -1,4 +1,4 @@
-package inputs;
+package dso.inputs;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
